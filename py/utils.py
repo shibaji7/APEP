@@ -1,5 +1,7 @@
 import ephem
 import numpy as np
+from loguru import logger
+import pandas as pd
 
 
 class Eclipse(object):
@@ -71,3 +73,29 @@ def create_eclipse_path_local(dates, lat, lon, alt=300):
     for i, d in enumerate(tqdm(dates)):
         p[i] = e.create_eclipse_shadow(d, lat, lon, alt)
     return p
+
+
+def extract_all_ionosonde_datasets_from_inogram_image(folder, date, code):
+    import glob
+    from image_parser import IonogramTableExtractor
+    files = glob.glob(f"{folder}/*.png")
+    logger.info(f"Found {len(files)} files in {folder}")
+    files.sort()
+    records = []
+    for i, f in enumerate(files):
+        logger.info(f"Extracting {f}")
+        hours, minutes, seconds = (
+            int(f.split("/")[-1].split("_")[-1].split(".")[0][:2]),
+            int(f.split("/")[-1].split("_")[-1].split(".")[0][2:4]),
+            int(f.split("/")[-1].split("_")[-1].split(".")[0][4:]),
+        )
+        record = IonogramTableExtractor.extract_ionogram_table(f, verbose=False)
+        record["date"] = date.replace(
+            hour=hours, minute=minutes, second=seconds
+        )
+        record["image_path"] = f
+        records.append(record)
+    records = pd.concat(records, ignore_index=True)
+
+    records.to_csv(f"data/{date.year}/{code}.csv", index=False, header=True, float_format="%g")
+    return

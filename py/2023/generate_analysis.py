@@ -16,17 +16,18 @@ from pynasonde.digisonde.digi_plots import (
     SkySummaryPlots,
 )
 
-def copy(date):
+def copy(date, mode="SKYWAVE"):
     os.makedirs("figures/2023/", exist_ok=True)
-    base = f"/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_{date.strftime('%Y_%m_%d')}/"
+    base = f"/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/{mode}_DPS4D_{date.strftime('%Y_%m_%d')}/"
     local, remote = create_local_folder(base)
     copy2local(local, remote)
     return local, remote
 
 def generate_digisonde_pfh_profiles(
-    date, func_name, fig_title="", draw_local_time=False
+    date, func_name, fig_title="", draw_local_time=False,
+    mode="SKYWAVE",
 ):
-    local, remote = copy(date)
+    local, remote = copy(date, mode=mode)
     df = SaoExtractor.load_SAO_files(
         folders=[local],
         func_name=func_name,
@@ -56,12 +57,12 @@ def generate_digisonde_pfh_profiles(
     axt.set_yticklabels([1, .5, 0])
     ax.set_xlim([date, date+dt.timedelta(1)])
     ax.xaxis.set_major_locator(mdates.HourLocator(interval=6))
-    sao_plot.save(f"figures/2023/{date.strftime('%Y%m%d')}_sao.png")
+    sao_plot.save(f"figures/2023/{mode}_{date.strftime('%Y%m%d')}_sao.png")
     sao_plot.close()
     return
 
-def create_dvl_plots(date=dt.datetime(2023, 10, 14)):
-    local, remote = copy(date)
+def create_dvl_plots(date=dt.datetime(2023, 10, 14), mode="SKYWAVE"):
+    local, remote = copy(date, mode=mode)
     dvl_df = DvlExtractor.load_DVL_files(
         [local],
         n_procs=12,
@@ -99,13 +100,13 @@ def create_dvl_plots(date=dt.datetime(2023, 10, 14)):
     ax.xaxis.set_major_locator(mdates.HourLocator(interval=6))
     ax.set_xlim([date, date + dt.timedelta(1)])
 
-    dvlplot.save(f"figures/2023/{date.strftime('%Y%m%d')}_dvl.png")
+    dvlplot.save(f"figures/2023/{mode}_{date.strftime('%Y%m%d')}_dvl.png")
     dvlplot.close()
     return
     
-def create_sky_maps(date):
+def create_sky_maps(date, mode="SKYWAVE"):
     os.makedirs(f"figures/2023/sky/{date.strftime('%Y%m%d')}/", exist_ok=True)
-    local, remote = copy(date)
+    local, remote = copy(date, mode=mode)
     files = glob.glob(os.path.join(local, "*.SKY"))
     files.sort()
     j = 0
@@ -122,7 +123,7 @@ def create_sky_maps(date):
             clim=[-1, 1],
             rlim=6,
         )
-        skyplot.save(f"figures/2023/sky/{date.strftime('%Y%m%d')}/{extractor.date.strftime('%H%M')}_sky.png")
+        skyplot.save(f"figures/2023/sky/{mode}_{date.strftime('%Y%m%d')}/{extractor.date.strftime('%H%M')}_sky.png")
         skyplot.close()
         j+=1
     return
@@ -134,11 +135,17 @@ if __name__ == "__main__":
         dt.datetime(2023, 10, 14),
         dt.datetime(2023, 10, 15)
     ]
+    mode = "WSMR"
     for date in dates:
-        create_dvl_plots(date)
-        generate_digisonde_pfh_profiles(
-            date,
-            "height_profile",
-            fig_title="",
-        )
-        create_sky_maps(date)
+        # create_dvl_plots(date, mode=mode)
+        # generate_digisonde_pfh_profiles(
+        #     date,
+        #     "height_profile",
+        #     fig_title="",
+        # )
+        # create_sky_maps(date)
+        pass
+
+    folder = "/home/chakras4/OneDrive/Chakras4/Projects/ERAU.SAIL.Projects/byProjects/APEP/Downloaded Datastes/2023/BC840/"
+    utils.extract_all_ionosonde_datasets_from_inogram_image(folder, date=dt.datetime(2023, 10, 14), code="BC840")
+    

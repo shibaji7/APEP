@@ -131,7 +131,7 @@ def create_sky_maps(date):
 if __name__ == "__main__":
     dates = [
         # dt.datetime(2024, 4, 7),
-        dt.datetime(2024, 4, 8),
+        # dt.datetime(2024, 4, 8),
         # dt.datetime(2024, 4, 9),
     ]
     for date in dates:
@@ -142,3 +142,5 @@ if __name__ == "__main__":
             fig_title="",
         )
         create_sky_maps(date)
+    # folder = "/home/chakras4/OneDrive/Chakras4/Projects/ERAU.SAIL.Projects/byProjects/APEP/Downloaded Datastes/2024/BC840/"
+    # utils.extract_all_ionosonde_datasets_from_inogram_image(folder, date=dt.datetime(2024, 4, 8), code="BC840")
