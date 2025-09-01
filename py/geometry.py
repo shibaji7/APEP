@@ -192,14 +192,18 @@ def create_map(
     extent=[-150, -70, 10, 70],
     fname="figures/map.png",
 ):
-    fig = plt.figure(figsize=(4, 4), dpi=300)
+    import sys
+    sys.path.append("py/")
+    import utils
+
+    fig = plt.figure(figsize=(2*3.5, 3.5), dpi=300)
     proj = cartopy.crs.Stereographic(
         central_longitude=central_longitude,
         central_latitude=central_latitude,
     )
     # this creats a 'geoaxes' object and sets the projection to a cool looking orthographic projection
     ax = fig.add_subplot(
-        111,
+        122,
         projection="CartoBase",
         map_projection=proj,
         coords="geo",
@@ -230,11 +234,113 @@ def create_map(
         color="red",
         lw=0.5, ls="--"
     )
+    # Overlay 2024 Eclipse
+    Lat, Lon = np.meshgrid(np.arange(0, 90, 0.5), np.arange(-160, 0, 0.5))
+    p = utils.get_fov_eclipse(
+        [dt.datetime(2024, 4, 8, 17) + dt.timedelta(minutes=5*d) for d in range(60)],
+        Lat, Lon, limit=None
+    )
+    p = np.nanmax(p, axis=0)
+    p[p<=0] = np.nan
+    p[p>1] = np.nan
+    xyz = ax.projection.transform_points(
+        cartopy.crs.PlateCarree(),
+        Lon, Lat
+    )
+    cf = ax.contourf(
+        xyz[:, :, 0],
+        xyz[:, :, 1],
+        p,
+        levels=np.arange(0., 1.1, 0.1),
+        cmap="Blues",
+        transform=proj,
+        extend="max",
+    )
+    cax = fig.add_axes([0.95, 0.3, 0.01, 0.4]) 
+    cbar = fig.colorbar(cf, cax=cax)
+    cbar.set_label(r"Obscuration ($\mathcal{O}$)")
+    stations_lats = np.array([37.8815, 45.0617, 30.2672, 33.72, 35.00])
+    stations_lons = np.array([-75.4374, -83.4328, -97.7431, 253.26, 253.47])
+    xyz = ax.projection.transform_points(
+        cartopy.crs.PlateCarree(),
+        stations_lons, stations_lats
+    )
+    ax.scatter(
+        xyz[:, 0],
+        xyz[:, 1],
+        marker="o",
+        color="k",
+        s=5,
+    )
+    ax.text(0.05, 1.05, "(B) 8 April, 2024 GAE", ha="left", va="center", transform=ax.transAxes)
+
+    # this creats a 'geoaxes' object and sets the projection to a cool looking orthographic projection
+    ax = fig.add_subplot(
+        121,
+        projection="CartoBase",
+        map_projection=proj,
+        coords="geo",
+        plot_date=date,
+    )
+    ax.set_extent(extent, crs=cartopy.crs.PlateCarree())
+    ax.overaly_coast_lakes(lw=0.4, alpha=0.4)
+    mark_lons = np.arange(extent[0], extent[1]+1, 20)
+    plt_lats = np.arange(extent[2], extent[3]+1, 15)
+    ax.set_extent(extent, crs=cartopy.crs.PlateCarree())
+    gl = ax.gridlines(crs=cartopy.crs.PlateCarree(), linewidth=0.2)
+    gl.xlocator = mticker.FixedLocator(mark_lons)
+    gl.xformatter = LONGITUDE_FORMATTER
+    gl.yformatter = LATITUDE_FORMATTER
+    gl.n_steps = 90
+    ax.mark_latitudes(plt_lats, fontsize="xx-small", color="k")
+    ax.mark_longitudes(mark_lons, fontsize="xx-small", color="k")
+
+    # Overlay 2024 Eclipse
+    Lat, Lon = np.meshgrid(np.arange(0, 90, 0.5), np.arange(-160, 0, 0.5))
+    p = utils.get_fov_eclipse(
+        [dt.datetime(2023, 10, 14, 16) + dt.timedelta(minutes=5*d) for d in range(60)],
+        Lat, Lon, limit=None
+    )
+    p = np.nanmax(p, axis=0)
+    p[p<=0] = np.nan
+    p[p>1] = np.nan
+    xyz = ax.projection.transform_points(
+        cartopy.crs.PlateCarree(),
+        Lon, Lat
+    )
+    ax.contourf(
+        xyz[:, :, 0],
+        xyz[:, :, 1],
+        p,
+        levels=np.arange(0.1, 1.1, 0.1),
+        cmap="Blues",
+        transform=proj,
+        extend="max",
+        alpha=0.95,
+    )
+    stations_lats = np.array([37.8815, 30.2672, 33.72, 35.00, 40.0190])
+    stations_lons = np.array([-75.4374, -97.7431, 253.26, 253.47, -105.2747])
+    xyz = ax.projection.transform_points(
+        cartopy.crs.PlateCarree(),
+        stations_lons, stations_lats
+    )
+    ax.scatter(
+        xyz[:, 0],
+        xyz[:, 1],
+        marker="o",
+        color="k",
+        s=5,
+    )
+    ax.text(-0.05, 0.99, "Coords: Geo", ha="left", va="top", rotation=90, transform=ax.transAxes)
+    ax.text(0.05, 1.05, "(A) 14 October, 2023 GAE", ha="left", va="center", transform=ax.transAxes)
+
+
     plt.savefig(
         fname,
         dpi=1000,
         bbox_inches="tight",
     )
-    print(mark_lons)
+    plt.close()
 
-create_map()
+if __name__ == "__main__":
+    create_map()

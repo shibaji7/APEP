@@ -2,11 +2,15 @@ import sys
 sys.path.extend(["py/", "py/2024/"])
 import datetime as dt
 import matplotlib.dates as mdates
+from matplotlib.dates import DateFormatter
 import os
 import glob
 
 from fetch import create_local_folder, copy2local
 import utils
+from skymap_stack import create_skymaps_panels
+
+import pandas as pd
 
 from pynasonde.digisonde.parsers.dvl import DvlExtractor
 from pynasonde.digisonde.parsers.sao import SaoExtractor
@@ -16,9 +20,9 @@ from pynasonde.digisonde.digi_plots import (
     SkySummaryPlots,
 )
 
-def copy(date):
+def copy(date, mode="SKYWAVE"):
     os.makedirs("figures/2024/", exist_ok=True)
-    base = f"/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_{date.strftime('%Y_%m_%d')}/"
+    base = f"/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/{mode}_DPS4D_{date.strftime('%Y_%m_%d')}/"
     local, remote = create_local_folder(base)
     copy2local(local, remote)
     return local, remote
@@ -128,19 +132,96 @@ def create_sky_maps(date):
     return
 
 
+def plot_ionosonde_data(
+    date=dt.datetime(2024, 4, 8), code="BC840"
+):
+    file = f"data/{date.year}/{code}.csv"
+    o = pd.read_csv(file, parse_dates=["date"])
+    dates, foF2_new = utils.interpolate_missing_values(o, "date", "foF2")
+    print(o.head())
+    p = SaoSummaryPlots(
+        figsize=(6, 3), fig_title="", draw_local_time=False
+    )
+    ax = p.get_axes(del_ticks=False)
+    ax.xaxis.set_major_locator(mdates.HourLocator(interval=6))
+    ax.xaxis.set_major_formatter(DateFormatter(r"$%H^{%M}$"))
+    ax.plot(o.date, o.foF2, marker="o", markersize=3, color="b", label="foF2")
+    ax.plot(dates, foF2_new, marker="o", markersize=1, color="r", label="foF2-i")
+    ax.set_xlabel("Time (UT)")
+    ax.set_ylim([0, 12])
+    ax.set_ylabel("foFs (MHz)")
+    p.save(f"figures/2024/{code}_ts.png")
+    p.close()
+    return
+
 if __name__ == "__main__":
     dates = [
         # dt.datetime(2024, 4, 7),
-        # dt.datetime(2024, 4, 8),
+        dt.datetime(2024, 4, 8),
         # dt.datetime(2024, 4, 9),
     ]
-    for date in dates:
-        create_dvl_plots(date)
-        generate_digisonde_pfh_profiles(
-            date,
-            "height_profile",
-            fig_title="",
-        )
-        create_sky_maps(date)
-    # folder = "/home/chakras4/OneDrive/Chakras4/Projects/ERAU.SAIL.Projects/byProjects/APEP/Downloaded Datastes/2024/BC840/"
+    # copy(dates[0])
+    # copy(dates[0], mode="WSMR")
+    # for date in dates:
+    #     create_dvl_plots(date)
+    #     generate_digisonde_pfh_profiles(
+    #         date,
+    #         "height_profile",
+    #         fig_title="",
+    #     )
+    #     create_sky_maps(date)
+    folder = "/home/chakras4/OneDrive/Chakras4/Projects/ERAU.SAIL.Projects/byProjects/APEP/Downloaded Datastes/2024/AL945/"
+    # utils.extract_all_ionosonde_datasets_from_inogram_image(folder, date=dt.datetime(2024, 4, 8), code="AU930")
+    # utils.extract_all_ionosonde_datasets_from_inogram_image(folder, date=dt.datetime(2024, 4, 8), code="AL945")
     # utils.extract_all_ionosonde_datasets_from_inogram_image(folder, date=dt.datetime(2024, 4, 8), code="BC840")
+    # plot_ionosonde_data(code="AL945")
+
+
+    create_skymaps_panels(
+        [
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099170913.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099172113.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099173313.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099174513.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099175713.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099180913.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099182113.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099183313.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099184513.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099185713.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099190913.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099192113.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099193313.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099194513.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099195713.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099200913.SKY",
+        ], 
+        nrows=4, ncols=4,
+        fig_title="08 April 2024 / KR835", 
+        fname="figures/2024/sky_stack_KR835.png"
+    )
+
+    create_skymaps_panels(
+        [
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099170913.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099172113.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099173313.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099174513.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099175713.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099180913.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099182113.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099183313.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099184513.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099185713.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099190913.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099192113.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099193313.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099194513.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099195713.SKY",
+            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099200913.SKY",
+        ], 
+        nrows=4, ncols=4,
+        fig_title="08 April 2024 / WS833", 
+        fname="figures/2024/sky_stack_WS833.png"
+    )
+    

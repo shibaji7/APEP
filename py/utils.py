@@ -65,13 +65,32 @@ class Eclipse(object):
         return percent_eclipse
 
 
-def create_eclipse_path_local(dates, lat, lon, alt=300):
+def create_eclipse_path_local(dates, lat, lon, alt=300, limit=None):
     from tqdm import tqdm
 
     e = Eclipse()
     p = np.nan * np.zeros((len(dates)))
     for i, d in enumerate(tqdm(dates)):
-        p[i] = e.create_eclipse_shadow(d, lat, lon, alt)
+        shadow = e.create_eclipse_shadow(d, lat, lon, alt)
+        if limit is not None:
+            shadow[shadow < limit] = np.float64(0.)
+        p[i] = shadow
+    return p
+
+
+def get_fov_eclipse(
+    dates, lats, lons, alt=300, limit=None
+):
+    from tqdm import tqdm
+    e = Eclipse()
+    p = np.nan * np.zeros((len(dates), lats.shape[0], lats.shape[1]))
+    for i, date in tqdm(enumerate(dates)):
+        for j in tqdm(range(lats.shape[0])):
+            for k in tqdm(range(lats.shape[1])):
+                shadow = e.create_eclipse_shadow(date, lats[j,k], lons[j,k], alt)
+                if limit is not None:
+                    shadow = shadow if shadow >= limit else 0.
+                p[i, j, k] = shadow
     return p
 
 
@@ -99,3 +118,27 @@ def extract_all_ionosonde_datasets_from_inogram_image(folder, date, code):
 
     records.to_csv(f"data/{date.year}/{code}.csv", index=False, header=True, float_format="%g")
     return
+
+def interpolate_missing_values(
+        df, xparam, yparam, intv=60., 
+        cutoff_norm = 0.0006, order=2
+):
+    import datetime as dt
+    from scipy import signal
+
+    xvalues, yvalues = df[xparam].tolist(), np.array(df[yparam])
+    dx = np.array([(x-xvalues[0]).total_seconds() for x in xvalues])
+    dx = dx[~np.isnan(yvalues)]
+    yvalues = yvalues[~np.isnan(yvalues)]
+    n_minutes = (xvalues[-1] - xvalues[0]).total_seconds() / intv
+    newdx = np.arange(0, n_minutes*intv, intv)
+    yvalues_new = np.interp(newdx, dx, yvalues)
+    dates = [xvalues[0] + dt.timedelta(seconds=x) for x in newdx]
+
+    fs = 1/intv
+    nyquist = 0.5 * fs
+    cutoff_norm = cutoff_norm / nyquist
+    b, a = signal.butter(order, cutoff_norm, btype='low', analog=False)
+    yvalues_new = signal.lfilter(b, a, yvalues_new)
+
+    return dates, yvalues_new
