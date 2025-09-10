@@ -8,7 +8,7 @@ import glob
 
 from fetch import create_local_folder, copy2local
 import utils
-from skymap_stack import create_skymaps_panels
+from skymap_stack import create_skymaps_panels, latlon_from_xy_geopy
 
 import pandas as pd
 
@@ -177,53 +177,53 @@ if __name__ == "__main__":
     # plot_ionosonde_data(code="AL945")
 
 
-    create_skymaps_panels(
-        [
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099170913.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099172113.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099173313.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099174513.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099175713.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099180913.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099182113.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099183313.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099184513.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099185713.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099190913.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099192113.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099193313.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099194513.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099195713.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099200913.SKY",
-        ], 
-        nrows=4, ncols=4,
-        fig_title="08 April 2024 / KR835", 
-        fname="figures/2024/sky_stack_KR835.png"
-    )
+    # create_skymaps_panels(
+    #     [
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099170913.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099172113.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099173313.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099174513.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099175713.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099180913.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099182113.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099183313.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099184513.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099185713.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099190913.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099192113.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099193313.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099194513.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099195713.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/KR835_2024099200913.SKY",
+    #     ], 
+    #     nrows=4, ncols=4,
+    #     fig_title="08 April 2024 / KR835", 
+    #     fname="figures/2024/sky_stack_KR835.png"
+    # )
 
-    create_skymaps_panels(
-        [
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099170913.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099172113.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099173313.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099174513.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099175713.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099180913.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099182113.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099183313.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099184513.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099185713.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099190913.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099192113.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099193313.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099194513.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099195713.SKY",
-            "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099200913.SKY",
-        ], 
-        nrows=4, ncols=4,
-        fig_title="08 April 2024 / WS833", 
-        fname="figures/2024/sky_stack_WS833.png"
-    )
+    # create_skymaps_panels(
+    #     [
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099170913.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099172113.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099173313.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099174513.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099175713.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099180913.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099182113.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099183313.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099184513.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099185713.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099190913.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099192113.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099193313.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099194513.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099195713.SKY",
+    #         "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099200913.SKY",
+    #     ], 
+    #     nrows=4, ncols=4,
+    #     fig_title="08 April 2024 / WS833", 
+    #     fname="figures/2024/sky_stack_WS833.png"
+    # )
     
 
     # create_skymaps_panels(
@@ -273,3 +273,21 @@ if __name__ == "__main__":
     #     fig_title="09 April 2024 / WS833", 
     #     fname="figures/2024/sky_stack_WS833.png"
     # )
+
+    # To .mat files
+    import numpy as np
+    x_east_km, y_north_km = np.meshgrid(np.linspace(-10, 10.1, 300), np.linspace(-10, 10.1, 300))
+    lats, lons = latlon_from_xy_geopy(
+        33.72,360.-253.26,
+        x_east_km, y_north_km
+    )
+    o = dict(lats=lats, lons=lons, x_east=x_east_km, y_north=y_north_km)
+    import scipy.io as sio
+    sio.savemat("figures/WS833.mat", o)
+
+    lats, lons = latlon_from_xy_geopy(
+        35.00,360.-253.47,
+        x_east_km, y_north_km
+    )
+    o = dict(lats=lats, lons=lons, x_east=x_east_km, y_north=y_north_km)
+    sio.savemat("figures/KR835.mat", o)

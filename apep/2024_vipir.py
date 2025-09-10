@@ -1,5 +1,5 @@
 import sys
-sys.path.extend(["py/", "py/2024/"])
+sys.path.extend(["apep/"])
 import datetime as dt
 
 from loguru import logger
@@ -48,6 +48,4 @@ for i, dx in enumerate(ds.datasets):
     )
     scaler.draw_sanity_check_images(f"figures/2024/scan_{i}.png", font_size=15)
     del scaler
-    # break
-
-# TODO ERRIE
+    break
