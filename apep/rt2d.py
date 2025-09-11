@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from loguru import logger
 from types import SimpleNamespace
 import sys
+from multiprocessing import Pool, cpu_count
 
 sys.path.append("apep/")
 from iri import IRI, IonosphereModels
@@ -210,6 +211,77 @@ class RayTracer2D:
             "reason": reason,
         }
 
+    def run_single_ray(self, args:tuple):
+        f_MHz, el0_deg, x0_km, y0_km, s_max_km, ds_km, y_max_km, x_max_km, keep_every = args
+        logger.info(f"Running simulations: f {f_MHz} e {el0_deg}")
+        cfg = RayConfig(
+            f_MHz=f_MHz,
+            el0_deg=el0_deg,
+            x0_km=x0_km,
+            y0_km=y0_km,
+            s_max_km=s_max_km,
+            ds_km=ds_km,
+            y_max_km=y_max_km,
+            x_max_km=x_max_km,
+            keep_every=keep_every
+        )
+        out = self.trace(cfg)
+        logger.warning(f"Termination: {out['reason']}")
+        logger.info(f"Max height (km): {out['y_km'].max() if out['y_km'].size else None}")
+        logger.info(f"Ground range (km): {np.abs(out['x_km']).max() if out['x_km'].size else None}")
+        return SimpleNamespace(**out)
+
+    def run_all_rays(
+        self, frequencies, el_angles,
+        x0_km, y0_km, s_max_km, ds_km,
+        y_max_km, x_max_km, keep_every
+    ):
+        tasks = [
+            (f, el, x0_km, y0_km, s_max_km, ds_km,
+            y_max_km, x_max_km, keep_every)
+            for f in frequencies
+            for el in el_angles
+        ]
+        # use all CPUs, or specify processes=N
+        with Pool(processes=cpu_count()-3) as pool:
+            self.outputs = pool.map(self.run_single_ray, tasks)
+        return self.outputs
+
+    def homing_in_to_locate_roots(self, outputs=[], ground_location_precision=6):
+        self.homing_roots = []
+        outputs = outputs if len(outputs)>0 else self.outputs
+        for o in outputs:
+            if (
+                (o.reason == "ground_hit") and\
+                    (np.round(o.y_km[-1],6) == 0.)
+            ) or (o.reason == "evanescent"):
+                self.homing_roots.append(o.el0_deg)
+        return self.homing_roots
+
+    def plot_fan(
+        self, X, Z, Ne,
+        outputs=[], 
+        homing_roots=[], 
+        figure_file_name=None, 
+        kind="pf", 
+        close=False
+    ):
+        outputs = outputs if len(outputs)>0 else self.outputs
+        homing_roots = homing_roots if len(homing_roots)>0 else self.homing_roots
+        rp = PlotRays()
+        rp.set_density(X, Z, Ne, plasma_freq_hz(Ne)/1e6)
+        rp.lay_rays(
+            outputs, kind=kind,
+            ped_angles=homing_roots,
+        )
+        if figure_file_name:
+            rp.save(figure_file_name)
+        if close: 
+            rp.close()
+            return 0
+        else: 
+            return rp
+
 # ========================== Examples =======================
 # Build a demo Ne(x,y) field: background + Chapman bump centered at x
 def ray_trace_2d_ionosphereic_bump(
@@ -236,35 +308,13 @@ def ray_trace_2d_ionosphereic_bump(
         x, hs, NmF2, hmF2, nmf2_funct, 
         hmf2_funct, H_scale, Ne_floor
     )
-    outputs = []
-    for f_MHz in frequencies:
-        for el0_deg in el_angles:
-            logger.info(f"Running simulations: f {f_MHz} e {el0_deg}")
-            cfg = RayConfig(
-                f_MHz=f_MHz,
-                el0_deg=el0_deg,
-                x0_km=x0_km,
-                y0_km=y0_km,
-                s_max_km=s_max_km,   # allow enough total path
-                ds_km=ds_km,         # 0.25–1.0 km is a good starting step
-                y_max_km=y_max_km,
-                x_max_km=x_max_km,
-                keep_every=keep_every
-            )
-            rt = RayTracer2D(x, hs, Ne)
-
-            out = rt.trace(cfg)
-            logger.warning(f"Termination: {out['reason']}")
-            logger.info(f"Max height (km): {out['y_km'].max() if out['y_km'].size else None}")
-            logger.info(f"Ground range (km): {np.abs(out['x_km']).max() if out['x_km'].size else None}")
-            outputs.append(SimpleNamespace(**out))
-    
-    if figure_file_name:
-        rp = PlotRays()
-        rp.set_density(X, Z, Ne)
-        rp.lay_rays(outputs)
-        rp.save(figure_file_name)
-        rp.close()
+    rt = RayTracer2D(x, hs, Ne)
+    outputs = rt.run_all_rays(
+        frequencies, el_angles,
+        x0_km, y0_km, s_max_km, ds_km,
+        y_max_km, x_max_km, keep_every,
+    )
+    rp = rt.plot_fan(X, Z, Ne, figure_file_name=figure_file_name)
     return X, Z, Ne, outputs
 
 
@@ -291,35 +341,13 @@ def ray_trace_2d_ionosphereic_tilt(
     X, Z, Ne = IonosphereModels.chapman_with_tilted_hmf2(
         x, hs, NmF2, hmF2, H_scale, Ne_floor, hmf2_tilt_funct
     )
-    outputs = []
-    for f_MHz in frequencies:
-        for el0_deg in el_angles:
-            logger.info(f"Running simulations: f {f_MHz} e {el0_deg}")
-            cfg = RayConfig(
-                f_MHz=f_MHz,
-                el0_deg=el0_deg,
-                x0_km=x0_km,
-                y0_km=y0_km,
-                s_max_km=s_max_km,   # allow enough total path
-                ds_km=ds_km,         # 0.25–1.0 km is a good starting step
-                y_max_km=y_max_km,
-                x_max_km=x_max_km,
-                keep_every=keep_every
-            )
-            rt = RayTracer2D(x, hs, Ne)
-
-            out = rt.trace(cfg)
-            logger.warning(f"Termination: {out['reason']}")
-            logger.info(f"Max height (km): {out['y_km'].max() if out['y_km'].size else None}")
-            logger.info(f"Ground range (km): {np.abs(out['x_km']).max() if out['x_km'].size else None}")
-            outputs.append(SimpleNamespace(**out))
-    
-    if figure_file_name:
-        rp = PlotRays()
-        rp.set_density(X, Z, Ne)
-        rp.lay_rays(outputs)
-        rp.save(figure_file_name)
-        rp.close()
+    rt = RayTracer2D(x, hs, Ne)
+    outputs = rt.run_all_rays(
+        frequencies, el_angles,
+        x0_km, y0_km, s_max_km, ds_km,
+        y_max_km, x_max_km, keep_every,
+    )
+    rp = rt.plot_fan(X, Z, Ne, figure_file_name=figure_file_name)
     return X, Z, Ne, outputs
 
 
@@ -345,6 +373,7 @@ def ray_trace_2d_ionosphereic_wave_front(
     x_max_km=4000.0,
     keep_every=1,
     figure_file_name=None,
+    ground_location_precision=6,
 ):
     el_angles = np.concatenate((el_angles, homing_roots))
     X, Z, Ne, alpha_X, Nex = IonosphereModels.cusp_function_alpha(
@@ -352,47 +381,23 @@ def ray_trace_2d_ionosphereic_wave_front(
         layer_scales, Ne_floor, x_params, d_params
     )
     rt = RayTracer2D(x, hs, Nex)
-    outputs = []
-    for f_MHz in frequencies:
-        for el0_deg in el_angles:
-            logger.info(f"Running simulations: f {f_MHz} e {el0_deg}")
-            cfg = RayConfig(
-                f_MHz=f_MHz,
-                el0_deg=el0_deg,
-                x0_km=x0_km,
-                y0_km=y0_km,
-                s_max_km=s_max_km,   # allow enough total path
-                ds_km=ds_km,         # 0.25–1.0 km is a good starting step
-                y_max_km=y_max_km,
-                x_max_km=x_max_km,
-                keep_every=keep_every
-            )
-            out = rt.trace(cfg)
-            logger.warning(f"Termination: {out['reason']}")
-            logger.info(f"Max height (km): {out['y_km'].max() if out['y_km'].size else None}")
-            logger.info(f"Ground range (km): {np.abs(out['x_km']).max() if out['x_km'].size else None}")
-            outputs.append(SimpleNamespace(**out))
-    homing_roots = []
-    for o in outputs:
-        if (
-            (o.reason == "ground_hit") and\
-                (np.round(o.y_km[-1],3) == 0.)
-        ) or (o.reason == "evanescent"):
-            homing_roots.append(o.el0_deg)
-
-    if figure_file_name:
-        rp = PlotRays()
-        rp.set_density(X, Z, Nex, plasma_freq_hz(Nex)/1e6)
-        rp.lay_rays(
-            outputs, kind="pf",
-            ped_angles=homing_roots,
-        )
-        rp.save(figure_file_name)
-        rp.close()
-        
+    outputs = rt.run_all_rays(
+        frequencies, el_angles,
+        x0_km, y0_km, s_max_km, ds_km,
+        y_max_km, x_max_km, keep_every,
+    )
+    homing_roots = rt.homing_in_to_locate_roots(
+        outputs, 
+        ground_location_precision=ground_location_precision
+    )
+    rp = rt.plot_fan(X, Z, Nex, figure_file_name=figure_file_name)
     return X, Z, Ne, outputs
 
 if __name__ == "__main__":
-    ray_trace_2d_ionosphereic_wave_front(
-        figure_file_name="figures/rt/wv.png"
-    )
+    for i, jx in enumerate(np.arange(-50, 50)):
+        x_params = np.asarray([-62, 93, 127]) + (jx*4)
+        ray_trace_2d_ionosphereic_wave_front(
+            x_params=x_params,
+            figure_file_name=f"figures/rt/wv{i}.png"
+        )
+        # print(x_params)
