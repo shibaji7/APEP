@@ -116,13 +116,15 @@ def ray_trace_2d_ionosphereic_wave_front(
     return X, Z, Ne, outputs
 
 if __name__ == "__main__":
-    for i, jx in enumerate(np.arange(-50, 50, 10)):
-        x_params = np.asarray([-40, 0, 40]) + (jx*4)
-        d_params = np.asarray([0.1, 0.1])
-        ray_trace_2d_ionosphereic_wave_front(
-            x_params=x_params,
-            figure_file_name=f"figures/rt/wv{i}.png",
-            ground_height_precision=1,
-            el_angles = np.arange(50, 110, 1)
-        )
+    for i, jx in enumerate(np.arange(-50, 50, 3)):
+        if i == 9:
+            x_params = np.asarray([-40, 0, 40]) + (jx*4)
+            d_params = np.asarray([0.1, 0.1])
+            ray_trace_2d_ionosphereic_wave_front(
+                x_params=x_params,
+                figure_file_name=f"figures/rt/wv{i}.png",
+                ground_height_precision=1,
+                el_angles = np.arange(50, 110, 0.1),
+                homing_error_km=3,
+            )
         # print(x_params)
