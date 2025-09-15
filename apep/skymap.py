@@ -12,6 +12,8 @@ import numpy as np
 from geopy.distance import distance as geo_distance
 from geopy.point import Point
 
+from tec import read_tec_observations_glonas
+
 def latlon_from_xy_geopy(
     lat0_deg: float,
     lon0_deg: float,
@@ -152,6 +154,84 @@ def create_skymaps_panels(
         
     ax = skyplot.fig.get_axes()[0]
     ax.text(-0.1, 0.99, fig_title, ha="left", va="top", transform=ax.transAxes, rotation=90)
+    skyplot.save(fname)
+    skyplot.close()
+    return
+
+
+def create_skymap_overlay_tec(
+    files,
+    nrows=2,
+    ncols=2,
+    font_size=15,
+    figsize=(4, 4),
+    fig_title="",
+    fname="",
+    date=None,
+    date_lims=[],
+):
+    skyplot = SkySummaryPlots(
+        fig_title="",
+        nrows=nrows,
+        ncols=ncols,
+        font_size=font_size,
+        figsize=figsize,
+        date=date,
+        date_lims=date_lims,
+        draw_local_time=False,
+        subplot_kw=dict(projection=None),
+    )
+
+    for i, f in enumerate(files):
+        extractor = SkyExtractor(f, True, True,)
+        extractor.extract()
+        df = extractor.to_pandas()
+
+        p = create_eclipse_path_local([extractor.date], extractor.stn_info["LAT"],extractor.stn_info["LONG"])
+        sza = solar.get_altitude(extractor.stn_info["LAT"],extractor.stn_info["LONG"], extractor.date.replace(tzinfo=timezone.utc))
+        text=f"{extractor.date.strftime('%H:%M:%S UT')}\n" + r"$\mathcal{O}$=%.2f/"%p[0] + r"$\chi=%.1f^{\circ}$"%sza
+        
+        # x_east_km, y_north_km = np.meshgrid(df.x_coord, df.y_coord)
+        lats, lons = latlon_from_xy_geopy(
+            extractor.stn_info["LAT"],extractor.stn_info["LONG"],
+            df.x_coord, df.y_coord
+        )
+        ax = skyplot.fig.get_axes()[skyplot.n_sub_plots-1]
+        im = ax.scatter(
+            lons, 
+            lats, 
+            c=df.spect_dop_freq,
+            cmap="Spectral",
+            s=1.5,
+            marker="D",
+            zorder=2,
+            vmax=1,
+            vmin=-1,
+        )
+        ax.axvline(extractor.stn_info["LONG"], ls="--", lw=0.8, color="k")
+        ax.axhline(extractor.stn_info["LAT"], ls="--", lw=0.8, color="k")
+        
+        dtec = read_tec_observations_glonas(extractor.date)
+        ax.scatter(
+            dtec.ipplons, 
+            dtec.ipplats, 
+            c=dtec.dtec1,
+            cmap="Blues",
+            s=1.5,
+            marker="D",
+            zorder=2,
+            alpha=0.5,
+            vmax=0.1,
+            vmin=-0.1,
+        )
+        ax.text(0.05, 0.95, text, ha="left", va="center", transform=ax.transAxes)
+
+        ax.set_xlim(extractor.stn_info["LONG"]+.05, extractor.stn_info["LONG"]-.05)
+        ax.set_ylim(extractor.stn_info["LAT"]-0.05, extractor.stn_info["LAT"]+0.05)
+        if i==len(files)-1:
+            skyplot._add_colorbar(im, skyplot.fig, ax, "Doppler, Hz", [0.05, 0.0125, 0.015, 0.5])
+    ax = skyplot.fig.get_axes()[0]
+    ax.text(-0.3, 0.99, fig_title, ha="left", va="top", transform=ax.transAxes, rotation=90)
     skyplot.save(fname)
     skyplot.close()
     return
