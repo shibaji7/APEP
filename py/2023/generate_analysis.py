@@ -163,9 +163,9 @@ if __name__ == "__main__":
         dt.datetime(2023, 10, 14),
         dt.datetime(2023, 10, 15)
     ]
-    mode = "WSMR"
+    mode = "SKYWAVE"
     for date in dates:
-        # create_dvl_plots(date, mode=mode)
+        create_dvl_plots(date, mode=mode)
         # generate_digisonde_pfh_profiles(
         #     date,
         #     "height_profile",

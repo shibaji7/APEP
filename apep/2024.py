@@ -45,7 +45,7 @@ create_skymap_overlay_tec(
 
 create_skymap_overlay_tec(
     [
-                "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099193313.SKY",
+    "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/WS833_2024099193313.SKY",
     ], 
     nrows=1, ncols=1,
     fig_title="08 April 2024 / WS833", 

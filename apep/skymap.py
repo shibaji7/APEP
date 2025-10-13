@@ -226,8 +226,8 @@ def create_skymap_overlay_tec(
         )
         ax.text(0.05, 0.95, text, ha="left", va="center", transform=ax.transAxes)
 
-        ax.set_xlim(extractor.stn_info["LONG"]+.05, extractor.stn_info["LONG"]-.05)
-        ax.set_ylim(extractor.stn_info["LAT"]-0.05, extractor.stn_info["LAT"]+0.05)
+        # ax.set_xlim(extractor.stn_info["LONG"]+.05, extractor.stn_info["LONG"]-.05)
+        # ax.set_ylim(extractor.stn_info["LAT"]-0.05, extractor.stn_info["LAT"]+0.05)
         if i==len(files)-1:
             skyplot._add_colorbar(im, skyplot.fig, ax, "Doppler, Hz", [0.05, 0.0125, 0.015, 0.5])
     ax = skyplot.fig.get_axes()[0]

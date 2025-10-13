@@ -125,6 +125,7 @@ def create_2024_tec(
     central_longitude=-120,
     central_latitude=30,
     extent=[-150, -70, 10, 70],
+    # extent=[-115, -100, 25, 40],
 ):
     setsize(30)
     fig = plt.figure(figsize=(9*3, 9*2.5), dpi=300)
@@ -133,7 +134,7 @@ def create_2024_tec(
         central_latitude=central_latitude,
     )
 
-    dates = [dt.datetime(2024, 4, 8, 16, 30) + dt.timedelta(minutes=20*i) for i in range(9)]
+    dates = [dt.datetime(2024, 4, 8, 17, 30) + dt.timedelta(minutes=20*i) for i in range(9)]
     datas = read_datasets(dates)
     for i, d in enumerate(dates):
         print(d)
@@ -250,5 +251,5 @@ def read_datasets(dates):
     return dtec
 
 if __name__ == "__main__":
-    create_2023_tec()
+    # create_2023_tec()
     create_2024_tec()

@@ -47,7 +47,7 @@ def ray_trace_2d_ionosphereic_tilt(
     hmF2: float = 300.0,                            # F2 peak height [km]
     H_scale:float = 50.0,  # scale height [km]
     Ne_floor:float = 2e10,
-    hmf2_tilt_funct = lambda dx: (-0.1*dx),
+    hmf2_tilt_funct = lambda dx: (-0.2*dx),
     frequencies: np.ndarray = np.asarray([8]),
     el_angles: np.ndarray = np.arange(50, 130, 5),
     x0_km=0.0,
@@ -58,6 +58,7 @@ def ray_trace_2d_ionosphereic_tilt(
     x_max_km=4000.0,
     keep_every=1,
     figure_file_name=None,
+    homing_roots: np.ndarray = np.arange(72, 85, 1),
 ):
     X, Z, Ne = IonosphereModels.chapman_with_tilted_hmf2(
         x, hs, NmF2, hmF2, H_scale, Ne_floor, hmf2_tilt_funct
@@ -68,7 +69,40 @@ def ray_trace_2d_ionosphereic_tilt(
         x0_km, y0_km, s_max_km, ds_km,
         y_max_km, x_max_km, keep_every,
     )
-    rp = rt.plot_fan(X, Z, Ne, figure_file_name=figure_file_name)
+    rp = rt.plot_fan(X, Z, Ne, homing_roots=homing_roots, figure_file_name=figure_file_name)
+    return X, Z, Ne, outputs
+
+# Build a demo Ne(x,y) field: background + Chapman tilt centered
+def ray_trace_2d_ionosphereic_obs(
+    x: np.ndarray = np.linspace(-1500, 1500, 601),  # horizontal distance [km]
+    hs: np.ndarray = np.linspace(0, 1000, 501),      # altitude [km]
+    NmF2: float = 1e12,                             # peak density [m^-3]
+    hmF2: float = 300.0,                            # F2 peak height [km]
+    H_scale:float = 50.0,  # scale height [km]
+    Ne_floor:float = 2e10,
+    hmf2_tilt_funct = lambda dx: (-0.2*dx),
+    frequencies: np.ndarray = np.asarray([8]),
+    el_angles: np.ndarray = np.arange(50, 130, 5),
+    x0_km=0.0,
+    y0_km=0.0,
+    s_max_km=3000.0,   # allow enough total path
+    ds_km=0.01,         # 0.25–1.0 km is a good starting step
+    y_max_km=1100.0,
+    x_max_km=4000.0,
+    keep_every=1,
+    figure_file_name=None,
+    homing_roots: np.ndarray = np.arange(72, 85, 1),
+):
+    X, Z, Ne = IonosphereModels.chapman_with_grading_obscuration(
+        x, hs, NmF2, hmF2, H_scale, Ne_floor
+    )
+    rt = RayTracer2D(x, hs, Ne)
+    outputs = rt.run_all_rays(
+        frequencies, el_angles,
+        x0_km, y0_km, s_max_km, ds_km,
+        y_max_km, x_max_km, keep_every,
+    )
+    rp = rt.plot_fan(X, Z, Ne, homing_roots=[], figure_file_name=figure_file_name)
     return X, Z, Ne, outputs
 
 # Build a demo Ne(x,y) field: Chapman background + Wave front
@@ -166,22 +200,44 @@ def ray_trace_2d_ionosphereic_tid(
     return
 
 if __name__ == "__main__":
+    # ray_trace_2d_ionosphereic_obs(
+    #     figure_file_name="figures/rt/tilt.png",
+    #     el_angles=np.concatenate(
+    #         [
+    #             np.round(np.arange(60, 85, 1), 1),
+    #             np.round(np.arange(95, 120, 1), 1),
+    #         ]
+    #     )
+    # )
+
+    ray_trace_2d_ionosphereic_wave_front(
+        figure_file_name="figures/rt/wv_center.png",
+        ground_height_precision=1,
+        x_params = np.asarray([-40, 0, 40]),
+        el_angles = np.concatenate(
+            [
+                np.round(np.arange(70, 85, 0.2), 1),
+                np.round(np.arange(95, 110, 0.2), 1),
+            ]
+        ),
+        homing_error_km=3,
+    )
     # for i, jx in enumerate(np.arange(-50, 50, 3)):
     #     if i == 9:
     # i=0
-    # jx=9
-    # for j, f in enumerate(np.round(np.arange(7, 9.5, 0.1),1)):
+    # jx=0
+    # for j, f in enumerate(np.round(np.arange(2, 9.5, 0.3),1)):
     #     x_params = np.asarray([-40, 0, 40]) + (jx*4)
-    #     d_params = np.asarray([0.1, 0.1])
-    #     ray_trace_2d_ionosphereic_wave_front(
-    #         x_params=x_params,
-    #         figure_file_name=f"figures/rt/wv{i}_{j}.png",
-    #         ground_height_precision=1,
-    #         el_angles = np.round(np.arange(70, 110, .5), 1),
-    #         homing_error_km=3,
-    #         frequencies=np.asarray([f])
-    #     )
+        # d_params = np.asarray([0.1, 0.1])
+        # ray_trace_2d_ionosphereic_wave_front(
+        #     x_params=x_params,
+        #     figure_file_name=f"figures/rt/wv{i}_{j}.png",
+        #     ground_height_precision=1,
+        #     el_angles = np.round(np.arange(70, 110, .5), 1),
+        #     homing_error_km=3,
+        #     frequencies=np.asarray([f])
+        # )
         # print(x_params)
-    ray_trace_2d_ionosphereic_tid(
-        figure_file_name="figures/rt/tid.png",
-    )
+    # ray_trace_2d_ionosphereic_tid(
+    #     figure_file_name="figures/rt/tid.png",
+    # )
