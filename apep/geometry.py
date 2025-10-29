@@ -235,18 +235,28 @@ def create_map(
         lw=0.5, ls="--"
     )
     # Overlay 2024 Eclipse
-    Lat, Lon = np.meshgrid(np.arange(0, 90, 0.5), np.arange(-160, 0, 0.5))
-    p = utils.get_fov_eclipse(
-        [dt.datetime(2024, 4, 8, 17) + dt.timedelta(minutes=5*d) for d in range(60)],
-        Lat, Lon, limit=None
+    lat, lon, Of = utils.get_eclipse_of_pyEclipse(
+        [dt.datetime(2024, 4, 8, 15) + dt.timedelta(minutes=5*d) for d in range(82)],
+        wl="193", 
+        data_folder="data/2024/mask/",
     )
-    p = np.nanmax(p, axis=0)
-    p[p<=0] = np.nan
-    p[p>1] = np.nan
+    Of[Of <= 0] = np.nan
+    Of[Of >= 1] = np.nan
+    p = np.nanmin(Of, axis=0)
+    p = 1-p
+    Lon, Lat = np.meshgrid(lon, lat)
     xyz = ax.projection.transform_points(
         cartopy.crs.PlateCarree(),
         Lon, Lat
     )
+    CS = ax.contour(
+        xyz[:, :, 0],
+        xyz[:, :, 1],
+        p,
+        levels=np.arange(0., 1.1, 0.1),
+        colors="k", linewidths=0.5
+    )
+    CS.clabel(fmt="%1.1f", fontsize=8)
     cf = ax.contourf(
         xyz[:, :, 0],
         xyz[:, :, 1],
@@ -256,9 +266,9 @@ def create_map(
         transform=proj,
         extend="max",
     )
-    cax = fig.add_axes([0.95, 0.3, 0.01, 0.4]) 
+    cax = fig.add_axes([0.92, 0.3, 0.01, 0.4]) 
     cbar = fig.colorbar(cf, cax=cax)
-    cbar.set_label(r"Obscuration ($\mathcal{O}$)")
+    cbar.set_label(r"Obscuration ($\mathcal{O}_{193}$)")
     stations_lats = np.array([37.8815, 45.0617, 30.2672, 33.72, 35.00])
     stations_lons = np.array([-75.4374, -83.4328, -97.7431, 253.26, 253.47])
     xyz = ax.projection.transform_points(
@@ -268,10 +278,24 @@ def create_map(
     ax.scatter(
         xyz[:, 0],
         xyz[:, 1],
-        marker="o",
-        color="k",
+        marker="^",
+        color="m",
         s=5,
     )
+    names = ["WI937", "AL962", "TX769", "NM741", "CO984"]
+    for lat, lon, name in zip(stations_lats, stations_lons, names):
+        xyz = ax.projection.transform_points(
+            cartopy.crs.PlateCarree(),
+            np.array([lon]), np.array([lat])
+        )
+        ax.text(
+            lon+np.random.uniform(-1, 1),
+            lat+np.random.uniform(-1, 1),
+            name,
+            transform=cartopy.crs.PlateCarree(),
+            fontsize=4,
+            color="m",
+        )
     ax.text(0.05, 1.05, "(B) 8 April, 2024 GAE", ha="left", va="center", transform=ax.transAxes)
 
     # this creats a 'geoaxes' object and sets the projection to a cool looking orthographic projection
@@ -295,29 +319,54 @@ def create_map(
     ax.mark_latitudes(plt_lats, fontsize="xx-small", color="k")
     ax.mark_longitudes(mark_lons, fontsize="xx-small", color="k")
 
-    # Overlay 2024 Eclipse
-    Lat, Lon = np.meshgrid(np.arange(0, 90, 0.5), np.arange(-160, 0, 0.5))
-    p = utils.get_fov_eclipse(
-        [dt.datetime(2023, 10, 14, 16) + dt.timedelta(minutes=5*d) for d in range(60)],
-        Lat, Lon, limit=None
+    
+    times = [dt.datetime(2023, 10, 14, 14) + dt.timedelta(minutes=5*d) for d in range(72)]
+    lat, lon, Of = utils.get_eclipse_of_pyEclipse(
+        times,
+        wl="of", 
+        file_ext="_150km_193_1.nc",
+        data_folder="data/2023/mask/"
     )
-    p = np.nanmax(p, axis=0)
-    p[p<=0] = np.nan
-    p[p>1] = np.nan
+    Of[Of <= 0] = np.nan
+    Of[Of >= 1] = np.nan
+    p = np.nanmin(Of, axis=0)
+    p = 1-p
+    Lon, Lat = np.meshgrid(lon, lat)
+
+    track = pd.read_csv("data/2023/central_line_centers.csv")
+    xyz = ax.projection.transform_points(
+        cartopy.crs.PlateCarree(),
+        track.CenterLongitudeDeg, track.CenterLatitudeDeg
+    )
+    ax.plot(
+        xyz[:, 0],
+        xyz[:, 1],
+        color="red",
+        lw=0.5, ls="--"
+    )
+
     xyz = ax.projection.transform_points(
         cartopy.crs.PlateCarree(),
         Lon, Lat
     )
-    ax.contourf(
+    CS = ax.contour(
         xyz[:, :, 0],
         xyz[:, :, 1],
         p,
-        levels=np.arange(0.1, 1.1, 0.1),
+        levels=np.arange(0., 1.1, 0.1),
+        colors="k", linewidths=0.5
+    )
+    CS.clabel(fmt="%1.1f", fontsize=8)
+    cf = ax.contourf(
+        xyz[:, :, 0],
+        xyz[:, :, 1],
+        p,
+        levels=np.arange(0., 1.1, 0.1),
         cmap="Blues",
         transform=proj,
         extend="max",
-        alpha=0.95,
     )
+
     stations_lats = np.array([37.8815, 30.2672, 33.72, 35.00, 40.0190])
     stations_lons = np.array([-75.4374, -97.7431, 253.26, 253.47, -105.2747])
     xyz = ax.projection.transform_points(
@@ -327,20 +376,42 @@ def create_map(
     ax.scatter(
         xyz[:, 0],
         xyz[:, 1],
-        marker="o",
-        color="k",
+        marker="^",
+        color="m",
         s=5,
     )
+    names = ["WI937", "AL962", "TX769", "NM741", "CO984"]
+    for lat, lon, name in zip(stations_lats, stations_lons, names):
+        xyz = ax.projection.transform_points(
+            cartopy.crs.PlateCarree(),
+            np.array([lon]), np.array([lat])
+        )
+        ax.text(
+            lon+np.random.uniform(-1, 1),
+            lat+np.random.uniform(-1, 1),
+            name,
+            transform=cartopy.crs.PlateCarree(),
+            fontsize=4,
+            color="m",
+        )
     ax.text(-0.05, 0.99, "Coords: Geo", ha="left", va="top", rotation=90, transform=ax.transAxes)
     ax.text(0.05, 1.05, "(A) 14 October, 2023 GAE", ha="left", va="center", transform=ax.transAxes)
 
-
+    fig.subplots_adjust(
+        # left=0.05,
+        # right=0.92,
+        # top=0.95,
+        # bottom=0.05,
+        wspace=0.1,
+        hspace=0.1,
+    )
     plt.savefig(
         fname,
         dpi=1000,
         bbox_inches="tight",
     )
     plt.close()
+    
 
 if __name__ == "__main__":
     create_map()

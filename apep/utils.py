@@ -2,6 +2,71 @@ import ephem
 import numpy as np
 from loguru import logger
 import pandas as pd
+import datetime as dt
+import xarray as xr
+
+def snap_to_nearest_five(dx: dt.datetime) -> dt.datetime:
+    # total minutes from start of day
+    minute_total = dx.hour * 60 + dx.minute + dx.second / 60 + dx.microsecond / 60_000_000
+    nearest = int(round(minute_total / 5.0) * 5)
+    snapped = dx.replace(hour=0, minute=0, second=0, microsecond=0) + dt.timedelta(minutes=nearest)
+    return snapped
+
+def get_eclipse_contours_pyEclipse(
+    dates, lat, lon, wl="X", 
+    file_ext="_150km_alleof.nc",
+    data_folder="/home/chakras4/OneDrive/Chakras4/Projects/Chakraborty.Projects/byProjects/2024 Eclipse Project/Datasets/2024_Apr_Eclipse/mask/"
+):
+    Of = []
+    for date in dates:
+        date = snap_to_nearest_five(date)
+        file = f"{data_folder}{date.strftime('%Y%m%d%H%M%S')}{file_ext}"
+        of_data = xr.open_dataset(file)
+        sza = of_data["sza"].values
+        if wl is None:
+            o = []
+            for wl in [
+                    "X", "131", "1600", 
+                    "1700", "171", "193",
+                    "211", "284", "304", 
+                    "335", "94"
+                ]:
+                of = of_data[str(wl)].values
+                of[sza > 90] = np.nan
+                lats = of_data["glat"].values
+                lons = of_data["glon"].values
+                i, j = np.argmin(np.abs(lats-lat)), np.argmin(np.abs(lons-lon))
+                o.append(of[i, j])
+            Of.append(o)
+        else:
+            of = of_data[str(wl)].values
+            of[sza > 90] = np.nan
+            lats = of_data["glat"].values
+            lons = of_data["glon"].values
+            i, j = np.argmin(np.abs(lats-lat)), np.argmin(np.abs(lons-lon))
+            Of.append(of[i, j])
+        of_data.close()
+    Of = np.array(Of)
+    return Of
+
+def get_eclipse_of_pyEclipse(
+    dates: list = [dt.datetime(2024, 4, 8, 16)], wl="X",
+    file_ext="_150km_alleof.nc",
+    data_folder="/home/chakras4/OneDrive/Chakras4/Projects/Chakraborty.Projects/byProjects/2024 Eclipse Project/Datasets/2024_Apr_Eclipse/mask/"
+):
+    Of = []
+    for date in dates:
+        file = f"{data_folder}{date.strftime('%Y%m%d%H%M%S')}{file_ext}"
+        of_data = xr.open_dataset(file)
+        sza = of_data["sza"].values
+        lat = of_data["glat"].values
+        lon = of_data["glon"].values
+        of = of_data[str(wl)].values
+        of[sza > 90] = np.nan
+        Of.append(of)
+        of_data.close()
+    return lat, lon, np.array(Of)
+
 
 
 class Eclipse(object):
@@ -142,3 +207,6 @@ def interpolate_missing_values(
     yvalues_new = signal.lfilter(b, a, yvalues_new)
 
     return dates, yvalues_new
+
+def plasma_freq_mhz(ne_per_m3: float) -> float:
+    return 8.98e-6 * np.sqrt(ne_per_m3)
