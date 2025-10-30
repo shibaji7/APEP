@@ -101,36 +101,39 @@ def build_panels(
         ncols=ncols,
         fig_title=title,
         fname=str(output),
+        wl="X", 
+        file_ext="_150km_alleof.nc",
+        data_folder="data/2024/mask/",
     )
 
 
 def main():
-    out_dir = Path("figures/2023")
+    out_dir = Path("figures/2024")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     kr835_folder = Path(
-        "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2023_10_14"
+        "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08"
     )
     ws833_folder = Path(
-        "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2023_10_14"
+        "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08"
     )
 
-    kr835_files = select_sky_files(kr835_folder, 16, dt.datetime(2023, 10, 14, 15, 10), dt.datetime(2023, 10, 14, 18, 30))
-    ws833_files = select_sky_files(ws833_folder, 16, dt.datetime(2023, 10, 14, 15, 10), dt.datetime(2023, 10, 14, 18, 30))
+    kr835_files = select_sky_files(kr835_folder, 16, dt.datetime(2024, 4, 8, 17), dt.datetime(2024, 4, 8, 20, 10))
+    ws833_files = select_sky_files(ws833_folder, 16, dt.datetime(2024, 4, 8, 17), dt.datetime(2024, 4, 8, 20, 10))
 
     build_panels(
         kr835_files,
-        title="14 Oct 2023 / KR835",
+        title="08 Apr 2024 / KR835",
         output=out_dir / "sky_stack_KR835.png",
     )
     build_panels(
         ws833_files,
-        title="14 Oct 2023 / WS833",
+        title="08 Apr 2024  / WS833",
         output=out_dir / "sky_stack_WS833.png",
     )
     import os
-    os.system(f"cp {out_dir}/sky_stack_WS833.png  manuscript_figures/Figure04.png")
-    os.system(f"cp {out_dir}/sky_stack_KR835.png  manuscript_figures/Figure05.png")
+    os.system(f"cp {out_dir}/sky_stack_WS833.png  manuscript_figures/Figure08.png")
+    os.system(f"cp {out_dir}/sky_stack_KR835.png  manuscript_figures/Figure09.png")
 
 
 if __name__ == "__main__":

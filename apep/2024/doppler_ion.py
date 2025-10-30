@@ -369,7 +369,7 @@ def create_dvl_summary(
 
     outfile.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(outfile, dpi=300, bbox_inches="tight")
-    fig.savefig("manuscript_figures/Figure03.png", dpi=1000, bbox_inches="tight")
+    fig.savefig("manuscript_figures/Figure07.png", dpi=1000, bbox_inches="tight")
     plt.close(fig)
 
 
