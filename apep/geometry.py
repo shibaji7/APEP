@@ -269,8 +269,10 @@ def create_map(
     cax = fig.add_axes([0.92, 0.3, 0.01, 0.4]) 
     cbar = fig.colorbar(cf, cax=cax)
     cbar.set_label(r"Obscuration ($\mathcal{O}_{193}$)")
-    stations_lats = np.array([37.8815, 45.0617, 30.2672, 33.72, 35.00])
-    stations_lons = np.array([-75.4374, -83.4328, -97.7431, 253.26, 253.47])
+    
+    names = ["AL945", "AU930", "BC840", "KR835", "WS833", "WP937", "WI937"]
+    stations_lats = np.array([45.07, 30.40, 40.00, 35.00, 33.72, 37.90, 37.90])
+    stations_lons = np.array([276.44, 262.30, 254.70, 253.47, 253.26, 284.50, 284.50])
     xyz = ax.projection.transform_points(
         cartopy.crs.PlateCarree(),
         stations_lons, stations_lats
@@ -282,20 +284,23 @@ def create_map(
         color="m",
         s=5,
     )
-    names = ["WI937", "AL962", "TX769", "NM741", "CO984"]
+    xoffset = [-1, 1, -1, 1, 1, 1, -1]
+    yoffset = [1, -1, 1, -1, -2, -1, 1]
+    j = 0
     for lat, lon, name in zip(stations_lats, stations_lons, names):
         xyz = ax.projection.transform_points(
             cartopy.crs.PlateCarree(),
             np.array([lon]), np.array([lat])
         )
         ax.text(
-            lon+np.random.uniform(-1, 1),
-            lat+np.random.uniform(-1, 1),
+            lon+xoffset[j],
+            lat+yoffset[j],
             name,
             transform=cartopy.crs.PlateCarree(),
             fontsize=4,
-            color="m",
+            color="k",
         )
+        j+=1
     ax.text(0.05, 1.05, "(B) 8 April, 2024 GAE", ha="left", va="center", transform=ax.transAxes)
 
     # this creats a 'geoaxes' object and sets the projection to a cool looking orthographic projection
@@ -344,7 +349,7 @@ def create_map(
         color="red",
         lw=0.5, ls="--"
     )
-
+    
     xyz = ax.projection.transform_points(
         cartopy.crs.PlateCarree(),
         Lon, Lat
@@ -367,8 +372,10 @@ def create_map(
         extend="max",
     )
 
-    stations_lats = np.array([37.8815, 30.2672, 33.72, 35.00, 40.0190])
-    stations_lons = np.array([-75.4374, -97.7431, 253.26, 253.47, -105.2747])
+    
+    names = ["AL945", "AU930", "BC840", "KR835", "WS833"]
+    stations_lats = np.array([45.07, 30.40, 40.00, 35.00, 33.72])
+    stations_lons = np.array([276.44, 262.30, 254.70, 253.47, 253.26])
     xyz = ax.projection.transform_points(
         cartopy.crs.PlateCarree(),
         stations_lons, stations_lats
@@ -380,20 +387,21 @@ def create_map(
         color="m",
         s=5,
     )
-    names = ["WI937", "AL962", "TX769", "NM741", "CO984"]
+    j=0
     for lat, lon, name in zip(stations_lats, stations_lons, names):
         xyz = ax.projection.transform_points(
             cartopy.crs.PlateCarree(),
             np.array([lon]), np.array([lat])
         )
         ax.text(
-            lon+np.random.uniform(-1, 1),
-            lat+np.random.uniform(-1, 1),
+            lon+xoffset[j],
+            lat+yoffset[j],
             name,
             transform=cartopy.crs.PlateCarree(),
             fontsize=4,
-            color="m",
+            color="k",
         )
+        j+=1
     ax.text(-0.05, 0.99, "Coords: Geo", ha="left", va="top", rotation=90, transform=ax.transAxes)
     ax.text(0.05, 1.05, "(A) 14 October, 2023 GAE", ha="left", va="center", transform=ax.transAxes)
 
@@ -407,6 +415,11 @@ def create_map(
     )
     plt.savefig(
         fname,
+        dpi=1000,
+        bbox_inches="tight",
+    )
+    plt.savefig(
+        "manuscript_figures/Figure01.png",
         dpi=1000,
         bbox_inches="tight",
     )
