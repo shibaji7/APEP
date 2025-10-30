@@ -1,6 +1,13 @@
+from pathlib import Path
+import sys
+sys.path.extend([
+    str(Path(__file__).resolve().parents[1]),
+    str(Path(__file__).resolve().parents[2]),
+])
+
 import datetime as dt
 import math
-from pathlib import Path
+
 from typing import Dict, Iterable, List, Tuple
 
 import matplotlib.dates as mdates
@@ -121,6 +128,31 @@ def prepare_scaled_dataframe(extractor: SaoExtractor) -> np.ndarray:
     scaled.sort_values("datetime", inplace=True)
     return scaled
 
+def eclipse_window(times: Iterable[dt.datetime], obscuration: np.ndarray, threshold: float = 0.05) -> Dict[str, dt.datetime]:
+    """Return start/peak/end for 1-Of once it exceeds the threshold."""
+    times = np.asarray(list(times), dtype=object)
+    flipped = 1.0 - np.asarray(obscuration, dtype=float)
+
+    valid = np.isfinite(flipped)
+    if not np.any(valid):
+        return {}
+
+    flipped = flipped[valid]
+    times = times[valid]
+
+    above = flipped >= threshold
+    if not np.any(above):
+        return {}
+
+    start_idx = np.argmax(above)
+    end_idx = len(above) - np.argmax(above[::-1]) - 1
+    peak_idx = np.nanargmax(flipped)
+
+    return {
+        "start": times[start_idx],
+        "peak": times[peak_idx],
+        "end": times[end_idx],
+    }
 
 def plot_station_panel(ax, scaled, iri_series, stn_info, time_limits):
     times = scaled["datetime"].to_list()
@@ -148,7 +180,12 @@ def plot_station_panel(ax, scaled, iri_series, stn_info, time_limits):
         file_ext="_150km_alleof.nc",
         data_folder="data/2024/mask/",
     )
-    print(Of)
+    peak_of = np.nanmax(1-Of)
+    ecl_data = eclipse_window(segment_times, Of, threshold=0.01)
+    print(ecl_data)
+    freq_ax.text(0.02, 0.95, r"$\mathcal{O}_{193}^p$: %.2f"%peak_of, transform=freq_ax.transAxes, ha="left", va="top", fontsize=12)
+    for k in ecl_data.keys():
+        freq_ax.axvline(ecl_data[k], color="k", linestyle="--", linewidth=1.0, alpha=0.7)
 
     # Heights
     height_ax.scatter(times, scaled["hmF2"], s=14, marker="s", color=COLORS["hmF2"], ls="None", alpha=0.7, label="hmF2 obs")
@@ -233,6 +270,9 @@ def main():
     ax_positions = [gs[0,0:2], gs[0,2:], gs[1,0:2], gs[1,2:]]
     axes = [fig.add_subplot(pos) for pos in ax_positions]
 
+
+    # for ax in axes[-1:]:
+    #     ax.set_visible(False)
     for ax, sao_path in zip(axes, station_files):
         code = sao_path.name.split("_")[0]
         extractor = SaoExtractor(str(sao_path), extract_time_from_name=False, extract_stn_from_name=False)
@@ -275,12 +315,13 @@ def main():
     ax.set_xlabel("Time (UTC)")
 
     build_legend(fig)
-    fig.suptitle("Eclipse Response — Ionosonde Stations (08 Apr 2024)", fontsize=15, y=0.90, fontweight="bold")
+    fig.suptitle("Ionospheric Response during 08 Apr 2024 Eclipse", fontsize=15, y=0.90, fontweight="bold")
     fig.tight_layout(rect=[0.03, 0.07, 0.97, 0.88])
 
     output_dir = Path("figures/2024")
     output_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_dir / "ionosonde_comparison.png", dpi=300, bbox_inches="tight")
+    fig.savefig("manuscript_figures/Figure06.png", dpi=1000, bbox_inches="tight")
     plt.close(fig)
 
 

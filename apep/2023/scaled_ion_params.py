@@ -315,7 +315,7 @@ def main():
     ax.set_xlabel("Time (UTC)")
 
     build_legend(fig)
-    fig.suptitle("Eclipse Response — Ionosonde Stations (14 Oct 2023)", fontsize=15, y=0.90, fontweight="bold")
+    fig.suptitle("Ionospheric Response during 14 Oct 2023 Eclipse", fontsize=15, y=0.90, fontweight="bold")
     fig.tight_layout(rect=[0.03, 0.07, 0.97, 0.88])
 
     output_dir = Path("figures/2023")

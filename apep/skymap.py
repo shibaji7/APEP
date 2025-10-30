@@ -2,7 +2,7 @@
 from pynasonde.digisonde.digi_plots import SkySummaryPlots
 from pynasonde.digisonde.parsers.sky import SkyExtractor
 
-from utils import create_eclipse_path_local, get_fov_eclipse
+from utils import get_eclipse_contours_pyEclipse, get_fov_pyEclipse
 import numpy as np
 from pysolar import solar
 from datetime import timezone
@@ -111,6 +111,9 @@ def create_skymaps_panels(
     fname="",
     date=None,
     date_lims=[],
+    wl="of", 
+    file_ext="_150km_193_1.nc",
+    data_folder="data/2023/mask/",
 ):
     skyplot = SkySummaryPlots(
         fig_title="",
@@ -128,7 +131,13 @@ def create_skymaps_panels(
         extractor.extract()
         df = extractor.to_pandas()
         # get solar zenith angle and also eclipse
-        p = create_eclipse_path_local([extractor.date], extractor.stn_info["LAT"],extractor.stn_info["LONG"])
+        p = 1-get_eclipse_contours_pyEclipse(
+            [extractor.date], extractor.stn_info["LAT"],
+            extractor.stn_info["LONG"],
+            wl=wl, 
+            file_ext=file_ext,
+            data_folder=data_folder,
+        )
         sza = solar.get_altitude(extractor.stn_info["LAT"],extractor.stn_info["LONG"], extractor.date.replace(tzinfo=timezone.utc))
         text=f"{extractor.date.strftime('%H:%M:%S UT')}\n" + r"$\mathcal{O}$=%.2f/"%p[0] + r"$\chi=%.1f^{\circ}$"%sza
         x_east_km, y_north_km = np.meshgrid(np.linspace(-10, 10.1, 300), np.linspace(-10, 10.1, 300))
@@ -138,7 +147,14 @@ def create_skymaps_panels(
             x_east_km, y_north_km
         )
         r, theta = np.sqrt(x_east_km**2+y_north_km**2), -np.arctan2(y_north_km, x_east_km)
-        p = get_fov_eclipse([extractor.date], lats, lons)[0, :, :]
+        p = 1- get_fov_pyEclipse(
+            [extractor.date], 
+            lats, 
+            lons,
+            wl=wl, 
+            file_ext=file_ext,
+            data_folder=data_folder,
+        )[0, :, :]
         skyplot.plot_skymap(
             df,
             zparam="spect_dop_freq",

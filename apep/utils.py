@@ -4,6 +4,7 @@ from loguru import logger
 import pandas as pd
 import datetime as dt
 import xarray as xr
+from tqdm import tqdm
 
 def snap_to_nearest_five(dx: dt.datetime) -> dt.datetime:
     # total minutes from start of day
@@ -11,6 +12,28 @@ def snap_to_nearest_five(dx: dt.datetime) -> dt.datetime:
     nearest = int(round(minute_total / 5.0) * 5)
     snapped = dx.replace(hour=0, minute=0, second=0, microsecond=0) + dt.timedelta(minutes=nearest)
     return snapped
+
+def get_fov_pyEclipse(
+    dates, lats, lons, wl="X", 
+    file_ext="_150km_alleof.nc",
+    data_folder="/home/chakras4/OneDrive/Chakras4/Projects/Chakraborty.Projects/byProjects/2024 Eclipse Project/Datasets/2024_Apr_Eclipse/mask/"
+):
+    p = np.nan * np.zeros((len(dates), lats.shape[0], lats.shape[1]))
+    for i, date in tqdm(enumerate(dates)):
+        date = snap_to_nearest_five(date)
+        file = f"{data_folder}{date.strftime('%Y%m%d%H%M%S')}{file_ext}"
+        of_data = xr.open_dataset(file)
+        sza = of_data["sza"].values
+        for j in tqdm(range(lats.shape[0])):
+            for k in tqdm(range(lats.shape[1])):
+                of = of_data[str(wl)].values
+                of[sza > 90] = np.nan
+                glats = of_data["glat"].values
+                glons = of_data["glon"].values
+                ix, jx = np.argmin(np.abs(glats-lats[j,k])), np.argmin(np.abs(glons-lons[j,k]))
+                p[i,j,k] = of[ix, jx]
+        of_data.close()
+    return p
 
 def get_eclipse_contours_pyEclipse(
     dates, lat, lon, wl="X", 
@@ -131,8 +154,6 @@ class Eclipse(object):
 
 
 def create_eclipse_path_local(dates, lat, lon, alt=300, limit=None):
-    from tqdm import tqdm
-
     e = Eclipse()
     p = np.nan * np.zeros((len(dates)))
     for i, d in enumerate(tqdm(dates)):
