@@ -15,9 +15,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.dates import DateFormatter
 from matplotlib.lines import Line2D
+from matplotlib import cm
 
 import iricore
 import utils
+import pandas as pd
 from pynasonde.digisonde.digi_utils import get_digisonde_info
 from pynasonde.digisonde.parsers.sao import SaoExtractor
 
@@ -43,6 +45,9 @@ COLORS = {
     "hmF2": "#2ca02c",  # green
     "hEs": "#ff7f0e",  # orange
 }
+
+FREQ_BIN_EDGES = np.arange(0.1, 12.1, 1.0)  # 0-1, 1-2, ... 7-8 MHz
+FREQ_BIN_CENTERS = FREQ_BIN_EDGES[:-1] + 0.5
 
 
 def _to_utc_datetime(value) -> dt.datetime:
@@ -75,7 +80,31 @@ def _extract_peak(freqs: np.ndarray, heights: np.ndarray, mask: np.ndarray) -> T
     best_local_idx = np.argmax(sub_freqs[valid])
     peak_idx = valid_idx[best_local_idx]
     return freqs[peak_idx], heights[peak_idx]
+def eclipse_window(times: Iterable[dt.datetime], obscuration: np.ndarray, threshold: float = 0.05) -> Dict[str, dt.datetime]:
+    """Return start/peak/end for 1-Of once it exceeds the threshold."""
+    times = np.asarray(list(times), dtype=object)
+    flipped = 1.0 - np.asarray(obscuration, dtype=float)
 
+    valid = np.isfinite(flipped)
+    if not np.any(valid):
+        return {}
+
+    flipped = flipped[valid]
+    times = times[valid]
+
+    above = flipped >= threshold
+    if not np.any(above):
+        return {}
+
+    start_idx = np.argmax(above)
+    end_idx = len(above) - np.argmax(above[::-1]) - 1
+    peak_idx = np.nanargmax(flipped)
+
+    return {
+        "start": times[start_idx],
+        "peak": times[peak_idx],
+        "end": times[end_idx],
+    }
 
 def compute_iri_series(
     times: Iterable[dt.datetime],
@@ -110,16 +139,45 @@ def compute_iri_series(
     }
 
 
-def _contiguous_segments(mask: np.ndarray) -> List[Tuple[int, int]]:
-    """Return inclusive index ranges where mask is True."""
-    indices = np.where(mask)[0]
-    if indices.size == 0:
-        return []
-    breaks = np.where(np.diff(indices) > 1)[0]
-    starts = np.r_[indices[0], indices[breaks + 1]]
-    ends = np.r_[indices[breaks], indices[-1]]
-    return list(zip(starts, ends))
+def prepare_profile_df(extractor: SaoExtractor)->pd.DataFrame:
+    O = pd.DataFrame()
+    for rec in extractor.sao.SAORecord:
+        o = pd.DataFrame()
+        if hasattr(rec.ProfileList, "Profile"):
+            h, f = (
+                np.array(rec.ProfileList.Profile[0].Tabulated.AltitudeList),
+                np.array(rec.ProfileList.Profile[0].Tabulated.ProfileValueList[0].values)
+            )
+            arg_max = np.argmax(f)
+            o["h"], o["f"] = h[:arg_max+1], f[:arg_max+1]
+            o["datetime"] =  _to_utc_datetime(rec.StartTimeUTC)
+            o.dropna(inplace=True)
+            O = pd.concat([O, o])
+    return O
 
+
+def compute_binned_median_heights(profile: pd.DataFrame) -> pd.DataFrame:
+    if profile.empty:
+        return pd.DataFrame(columns=FREQ_BIN_CENTERS)
+
+    def _median_per_bin(group: pd.DataFrame) -> np.ndarray:
+        medians = []
+        for low, high in zip(FREQ_BIN_EDGES[:-1], FREQ_BIN_EDGES[1:]):
+            mask = (group["f"] >= low) & (group["f"] < high)
+            if mask.any():
+                medians.append(group.loc[mask, "h"].median())
+            else:
+                medians.append(np.nan)
+        return np.array(medians)
+
+    grouped = (
+        profile.groupby("datetime", sort=True)
+        .apply(_median_per_bin)
+        .apply(pd.Series)
+    )
+    grouped.columns = FREQ_BIN_CENTERS
+    grouped.sort_index(inplace=True)
+    return grouped
 
 def prepare_scaled_dataframe(extractor: SaoExtractor) -> np.ndarray:
     scaled = extractor.get_scaled_datasets_xml()
@@ -128,47 +186,57 @@ def prepare_scaled_dataframe(extractor: SaoExtractor) -> np.ndarray:
     scaled.sort_values("datetime", inplace=True)
     return scaled
 
-def eclipse_window(times: Iterable[dt.datetime], obscuration: np.ndarray, threshold: float = 0.05) -> Dict[str, dt.datetime]:
-    """Return start/peak/end for 1-Of once it exceeds the threshold."""
-    times = np.asarray(list(times), dtype=object)
-    flipped = 1.0 - np.asarray(obscuration, dtype=float)
+def discover_station_files(year: int, limit: int = 6) -> List[Path]:
+    base_dir = Path(f"data/2024/")
+    if not base_dir.exists():
+        return []
+    station_files = sorted(base_dir.glob("*_SAO.XML"))
+    return station_files[:limit]
 
-    valid = np.isfinite(flipped)
-    if not np.any(valid):
-        return {}
 
-    flipped = flipped[valid]
-    times = times[valid]
-
-    above = flipped >= threshold
-    if not np.any(above):
-        return {}
-
-    start_idx = np.argmax(above)
-    end_idx = len(above) - np.argmax(above[::-1]) - 1
-    peak_idx = np.nanargmax(flipped)
-
-    return {
-        "start": times[start_idx],
-        "peak": times[peak_idx],
-        "end": times[end_idx],
-    }
-
-def plot_station_panel(ax, scaled, iri_series, stn_info, time_limits):
+def plot_station_panel(ax, scaled, profile, iri_series, stn_info, time_limits):
     times = scaled["datetime"].to_list()
-    freq_ax = ax
-    height_ax = ax.twinx()
 
-    # Frequencies
-    freq_ax.scatter(times, scaled["foF2"], s=12, color=COLORS["foF2"], ls="None", alpha=0.7, label="foF2 obs")
-    freq_ax.plot(times, iri_series["foF2"], color=COLORS["foF2"], lw=1.2, ls="-", label="foF2 IRI")
-    freq_ax.scatter(times, scaled["foEs"], s=12, color=COLORS["foE"], alpha=0.7, ls="None", label="foE obs")
-    freq_ax.plot(times, iri_series["foE"], color=COLORS["foE"], lw=1.2, ls="-", label="foE IRI")
-    freq_ax.set_xlim(time_limits)
-    freq_ax.set_ylim(1, 15)
-    freq_ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-    freq_ax.xaxis.set_major_formatter(DateFormatter("%H"))
-    freq_ax.grid(True, linestyle="--", alpha=0.2, linewidth=0.5)
+    binned_heights = compute_binned_median_heights(profile)
+    cmap = cm.get_cmap("plasma", len(FREQ_BIN_CENTERS))
+    if not binned_heights.empty:
+        base = np.zeros(len(binned_heights.index))
+        for idx, center in enumerate(FREQ_BIN_CENTERS):
+            if center not in binned_heights.columns:
+                continue
+            heights = binned_heights[center].to_numpy(dtype=float)
+            layer_times = binned_heights.index.to_list()
+            mask = ~np.isnan(heights)
+            if not np.any(mask):
+                continue
+            lower = base.copy()
+            upper = base.copy()
+            upper[mask] = heights[mask]
+            ax.fill_between(
+                layer_times,
+                lower,
+                upper,
+                where=mask,
+                color=cmap(idx),
+                alpha=0.35,
+                linewidth=0,
+            )
+            ax.plot(layer_times, heights, color=cmap(idx), lw=1.0)
+            base[mask] = heights[mask]
+
+    ax.scatter(times, scaled["hmF2"], s=14, marker="s", color=COLORS["hmF2"], ls="None", alpha=0.4, label="hmF2 obs")
+    ax.plot(times, iri_series["hmF2"], color=COLORS["hmF2"], ls="-", lw=1.2, label="hmF2 IRI")
+    
+    ax.set_yscale("log")
+    ax.set_xlim(time_limits)
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(DateFormatter("%H"))
+
+    ax.set_ylabel("Height (km)", color=COLORS["hmF2"])
+
+    title = f"{stn_info['URSI']}/{stn_info['STATIONNAME']}"
+    ax.text(0.02, 1.02, title, transform=ax.transAxes, ha="left", va="bottom", fontsize=15, fontweight="bold")
+
     iind, eind = (
         np.argmin(np.abs([t - dt.datetime(2024, 4, 8, 15, 0) for t in times])),
         np.argmin(np.abs([t - dt.datetime(2024, 4, 8, 21, 0) for t in times]))
@@ -182,71 +250,20 @@ def plot_station_panel(ax, scaled, iri_series, stn_info, time_limits):
     )
     peak_of = np.nanmax(1-Of)
     ecl_data = eclipse_window(segment_times, Of, threshold=0.01)
-    print(ecl_data)
-    freq_ax.text(0.02, 0.95, r"$\mathcal{O}_{193}^p$: %.2f"%peak_of, transform=freq_ax.transAxes, ha="left", va="top", fontsize=12)
-    for k in ecl_data.keys():
-        freq_ax.axvline(ecl_data[k], color="k", linestyle="--", linewidth=1.0, alpha=0.7)
-
-    # Heights
-    height_ax.scatter(times, scaled["hmF2"], s=14, marker="s", color=COLORS["hmF2"], ls="None", alpha=0.7, label="hmF2 obs")
-    height_ax.plot(times, iri_series["hmF2"], color=COLORS["hmF2"], ls="-", lw=1.2, label="hmF2 IRI")
-    height_ax.scatter(times, scaled["h`Es"], s=14, marker="s", color=COLORS["hEs"], ls="None", alpha=0.7, label="hmE obs")
-    height_ax.plot(times, iri_series["hEs"], color=COLORS["hEs"], ls="-", lw=1.2, label="hmE IRI")
-    height_ax.set_ylim(80, 420)
-    # Add obs
-    ymin, ymax = height_ax.get_ylim()
-    of_min, of_max = np.nanmin(Of), np.nanmax(Of)
-    of_scaled = Of * (ymax - 60)
-    height_ax.plot(
+    tax = ax.twinx()
+    tax.plot(
         segment_times,
-        of_scaled,
+        Of,
         color="k",
         linestyle="-",
         linewidth=1.0,
         alpha=0.8,
         label="_nolegend_",  # keeps existing legend untouched
     )
-
-
-    freq_ax.set_ylabel("Frequency (MHz)", color=COLORS["foF2"])
-    height_ax.set_ylabel("Height (km)", color=COLORS["hmF2"])
-
-    title = f"{stn_info['URSI']}/{stn_info['STATIONNAME']}"
-    freq_ax.text(0.02, 1.02, title, transform=freq_ax.transAxes, ha="left", va="bottom", fontsize=15, fontweight="bold")
-
-
-def discover_station_files(year: int, limit: int = 6) -> List[Path]:
-    base_dir = Path(f"data/{year}")
-    if not base_dir.exists():
-        return []
-    station_files = sorted(base_dir.glob("*_SAO.XML"))
-    return station_files[:limit]
-
-
-def build_legend(fig):
-    legend_elements = [
-        Line2D([], [], linestyle="none", marker="o", color=COLORS["foF2"], label="foF2 obs", alpha=0.7),
-        Line2D([], [], linestyle="-", marker=None, color=COLORS["foF2"], label="foF2 IRI"),
-        Line2D([], [], linestyle="none", marker="o", color=COLORS["foE"], label="foE obs", alpha=0.7),
-        Line2D([], [], linestyle="-", marker=None, color=COLORS["foE"], label="foE IRI"),
-        Line2D([], [], linestyle="none", marker="s", color=COLORS["hmF2"], label="hmF2 obs", alpha=0.7),
-        Line2D([], [], linestyle="-", marker=None, color=COLORS["hmF2"], label="hmF2 IRI"),
-        Line2D([], [], linestyle="none", marker="s", color=COLORS["hEs"], label="hmE obs", alpha=0.7),
-        Line2D([], [], linestyle="-", marker=None, color=COLORS["hEs"], label="hmE IRI"),
-    ]
-    fig.legend(
-        legend_elements,
-        [h.get_label() for h in legend_elements],
-        loc="upper center",
-        ncol=len(legend_elements),
-        frameon=False,
-        fontsize=15,
-        bbox_to_anchor=(0.5, 0.88),
-        columnspacing=1.2,
-        handletextpad=0.4,
-        borderaxespad=0.2,
-    )
-
+    tax.yaxis.set_visible(False)
+    ax.text(0.02, 0.95, r"$\mathcal{O}_{193}^p$: %.2f"%peak_of, transform=ax.transAxes, ha="left", va="top", fontsize=12)
+    for k in ecl_data.keys():
+        ax.axvline(ecl_data[k], color="k", linestyle="--", linewidth=1.0, alpha=0.7)
 
 def main():
     target_date = dt.date(2024, 4, 8)
@@ -259,7 +276,7 @@ def main():
     if not station_files:
         raise FileNotFoundError(f"No SAO XML files found under data/{target_date.year}")
 
-    panels = max(6, len(station_files))
+    panels = max(4, len(station_files))
     ncols = 2
     nrows = math.ceil(panels / ncols)
 
@@ -271,8 +288,8 @@ def main():
     axes = [fig.add_subplot(pos) for pos in ax_positions]
 
 
-    # for ax in axes[-1:]:
-    #     ax.set_visible(False)
+    bin_handles = []
+
     for ax, sao_path in zip(axes, station_files):
         code = sao_path.name.split("_")[0]
         extractor = SaoExtractor(str(sao_path), extract_time_from_name=False, extract_stn_from_name=False)
@@ -285,43 +302,50 @@ def main():
             rec.StartTimeUTC = _to_utc_datetime(rec.StartTimeUTC)
 
         scaled = prepare_scaled_dataframe(extractor)
+        profile = prepare_profile_df(extractor)
         iri_series = compute_iri_series(
             scaled["datetime"].tolist(),
             extractor.stn_info["LAT"],
             extractor.stn_info["LONG"],
         )
-        plot_station_panel(ax, scaled, iri_series, extractor.stn_info, time_limits)
+
+        plot_station_panel(ax, scaled, profile, iri_series, extractor.stn_info, time_limits)
         if ax.get_subplotspec().is_last_row():
             ax.set_xlabel("Time (UTC)")
         else:
             ax.set_xlabel("")
             ax.tick_params(labelbottom=False)
 
-    local = f"/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/"
-    scaled = SaoExtractor.load_SAO_files(
-        folders=[local],
-        func_name="scaled",
-        n_procs=12,
-    )
-    scaled.rename(columns={"hEs": "h`Es"}, inplace=True)
-    stn_info = get_digisonde_info("WS833")
-    iri_series = compute_iri_series(
-        scaled["datetime"].tolist(),
-        stn_info["LAT"],
-        stn_info["LONG"],
-    )
-    ax = fig.add_subplot(gs[2, 1:3])
-    plot_station_panel(ax, scaled, iri_series, stn_info, time_limits)
-    ax.set_xlabel("Time (UTC)")
+    cmap = cm.get_cmap("plasma", len(FREQ_BIN_CENTERS))
+    for idx, center in enumerate(FREQ_BIN_CENTERS):
+        bin_handles.append(
+            Line2D(
+                [0],
+                [0],
+                color=cmap(idx),
+                lw=4,
+                label=f"{center - 0.5:.0f}-{center + 0.5:.0f} MHz",
+            )
+        )
 
-    build_legend(fig)
-    fig.suptitle("Plasma Frequency Response during 08 Apr 2024 Eclipse", fontsize=15, y=0.90, fontweight="bold")
-    fig.tight_layout(rect=[0.03, 0.07, 0.97, 0.88])
+    leg = fig.legend(
+        handles=bin_handles,
+        loc="center left",
+        ncol=1,
+        frameon=False,
+        fontsize=14,
+        bbox_to_anchor=(0.92, 0.5),
+        borderaxespad=0.0,
+        handlelength=2.5,
+    )
+
+    fig.suptitle("Contour plots during 08 Apr 2024 Eclipse", fontsize=18, y=0.86, fontweight="bold")
+    fig.tight_layout(rect=[0.03, 0.05, 0.92, 0.9])
 
     output_dir = Path("figures/2024")
     output_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_dir / "ionosonde_comparison.png", dpi=300, bbox_inches="tight")
-    fig.savefig("manuscript_figures/Figure06.png", dpi=1000, bbox_inches="tight")
+    fig.savefig(output_dir / "ionosonde_contours.png", dpi=300, bbox_inches="tight")
+    fig.savefig("manuscript_figures/FigureS02.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
