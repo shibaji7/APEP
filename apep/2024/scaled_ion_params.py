@@ -154,7 +154,7 @@ def eclipse_window(times: Iterable[dt.datetime], obscuration: np.ndarray, thresh
         "end": times[end_idx],
     }
 
-def plot_station_panel(ax, scaled, iri_series, stn_info, time_limits):
+def plot_station_panel(j, ax, scaled, iri_series, stn_info, time_limits):
     times = scaled["datetime"].to_list()
     freq_ax = ax
     height_ax = ax.twinx()
@@ -182,7 +182,6 @@ def plot_station_panel(ax, scaled, iri_series, stn_info, time_limits):
     )
     peak_of = np.nanmax(1-Of)
     ecl_data = eclipse_window(segment_times, Of, threshold=0.01)
-    print(ecl_data)
     freq_ax.text(0.02, 0.95, r"$\mathcal{O}_{193}^p$: %.2f"%peak_of, transform=freq_ax.transAxes, ha="left", va="top", fontsize=12)
     for k in ecl_data.keys():
         freq_ax.axvline(ecl_data[k], color="k", linestyle="--", linewidth=1.0, alpha=0.7)
@@ -211,7 +210,7 @@ def plot_station_panel(ax, scaled, iri_series, stn_info, time_limits):
     freq_ax.set_ylabel("Frequency (MHz)", color=COLORS["foF2"])
     height_ax.set_ylabel("Height (km)", color=COLORS["hmF2"])
 
-    title = f"{stn_info['URSI']}/{stn_info['STATIONNAME']}"
+    title = f"({chr(65+j)}) {stn_info['URSI']}/{stn_info['STATIONNAME']}"
     freq_ax.text(0.02, 1.02, title, transform=freq_ax.transAxes, ha="left", va="bottom", fontsize=15, fontweight="bold")
 
 
@@ -273,6 +272,7 @@ def main():
 
     # for ax in axes[-1:]:
     #     ax.set_visible(False)
+    j = 0
     for ax, sao_path in zip(axes, station_files):
         code = sao_path.name.split("_")[0]
         extractor = SaoExtractor(str(sao_path), extract_time_from_name=False, extract_stn_from_name=False)
@@ -290,12 +290,13 @@ def main():
             extractor.stn_info["LAT"],
             extractor.stn_info["LONG"],
         )
-        plot_station_panel(ax, scaled, iri_series, extractor.stn_info, time_limits)
+        plot_station_panel(j, ax, scaled, iri_series, extractor.stn_info, time_limits)
         if ax.get_subplotspec().is_last_row():
-            ax.set_xlabel("Time (UTC)")
+            ax.set_xlabel("Time (UT)")
         else:
             ax.set_xlabel("")
             ax.tick_params(labelbottom=False)
+        j += 1
 
     local = f"/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/"
     scaled = SaoExtractor.load_SAO_files(
@@ -311,8 +312,8 @@ def main():
         stn_info["LONG"],
     )
     ax = fig.add_subplot(gs[2, 1:3])
-    plot_station_panel(ax, scaled, iri_series, stn_info, time_limits)
-    ax.set_xlabel("Time (UTC)")
+    plot_station_panel(j, ax, scaled, iri_series, stn_info, time_limits)
+    ax.set_xlabel("Time (UT)")
 
     build_legend(fig)
     fig.suptitle("Plasma Frequency Response during 08 Apr 2024 Eclipse", fontsize=15, y=0.90, fontweight="bold")

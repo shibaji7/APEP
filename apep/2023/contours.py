@@ -194,7 +194,7 @@ def discover_station_files(year: int, limit: int = 6) -> List[Path]:
     return station_files[:limit]
 
 
-def plot_station_panel(ax, scaled, profile, iri_series, stn_info, time_limits):
+def plot_station_panel(p, ax, scaled, profile, iri_series, stn_info, time_limits):
     times = scaled["datetime"].to_list()
 
     binned_heights = compute_binned_median_heights(profile)
@@ -234,7 +234,7 @@ def plot_station_panel(ax, scaled, profile, iri_series, stn_info, time_limits):
 
     ax.set_ylabel("Height (km)", color=COLORS["hmF2"])
 
-    title = f"{stn_info['URSI']}/{stn_info['STATIONNAME']}"
+    title = f"({chr(65+p)}) {stn_info['URSI']}/{stn_info['STATIONNAME']}"
     ax.text(0.02, 1.02, title, transform=ax.transAxes, ha="left", va="bottom", fontsize=15, fontweight="bold")
 
     iind, eind = (
@@ -289,7 +289,7 @@ def main():
 
 
     bin_handles = []
-
+    p = 0
     for ax, sao_path in zip(axes, station_files):
         code = sao_path.name.split("_")[0]
         extractor = SaoExtractor(str(sao_path), extract_time_from_name=False, extract_stn_from_name=False)
@@ -309,12 +309,13 @@ def main():
             extractor.stn_info["LONG"],
         )
 
-        plot_station_panel(ax, scaled, profile, iri_series, extractor.stn_info, time_limits)
+        plot_station_panel(p, ax, scaled, profile, iri_series, extractor.stn_info, time_limits)
         if ax.get_subplotspec().is_last_row():
-            ax.set_xlabel("Time (UTC)")
+            ax.set_xlabel("Time (UT)")
         else:
             ax.set_xlabel("")
             ax.tick_params(labelbottom=False)
+        p += 1
 
     cmap = cm.get_cmap("plasma", len(FREQ_BIN_CENTERS))
     for idx, center in enumerate(FREQ_BIN_CENTERS):

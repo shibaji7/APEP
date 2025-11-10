@@ -156,6 +156,7 @@ def set_velocity_axis(ax, comp: str, label: str, color: str, data: pd.DataFrame)
 
 
 def plot_station_column(
+    p: int,
     axes: np.ndarray,
     df: pd.DataFrame,
     stn_code: str,
@@ -192,27 +193,27 @@ def plot_station_column(
                 segment_times[1:],
                 eclipse_curve,
                 color="#ff7f50",
-                lw=1.3,
+                lw=3,
                 ls="-",
                 alpha=0.85,
                 label="_nolegend_",
             )
-        else:
-            Ofx = savgol_filter(Of, window_length=7, polyorder=3, mode="interp")
-            amplitude = vmax * (0.5 - (1 - Ofx))
-            amplitude = amplitude - max(amplitude)
-            ax.plot(
-                segment_times,
-                amplitude,
-                color="#ff7f50",
-                lw=1.3,
-                ls="-",
-                alpha=0.85,
-                label="_nolegend_",
-            )
+        # else:
+        #     Ofx = savgol_filter(Of, window_length=7, polyorder=3, mode="interp")
+        #     amplitude = vmax * (0.5 - (1 - Ofx))
+        #     amplitude = amplitude - max(amplitude)
+        #     ax.plot(
+        #         segment_times,
+        #         amplitude,
+        #         color="#ff7f50",
+        #         lw=1.3,
+        #         ls="-",
+        #         alpha=0.85,
+        #         label="_nolegend_",
+        #     )
         for key, style in {
             "start": {"ls": "--", "alpha": 0.6},
-            "peak": {"ls": "-", "alpha": 0.85},
+            "peak": {"ls": "--", "alpha": 0.85},
             "end": {"ls": "--", "alpha": 0.6},
         }.items():
             if marks:
@@ -279,7 +280,7 @@ def plot_station_column(
 
     for key, style in {
         "start": {"ls": "--", "alpha": 0.6},
-        "peak": {"ls": "-", "alpha": 0.85},
+        "peak": {"ls": "--", "alpha": 0.85},
         "end": {"ls": "--", "alpha": 0.6},
     }.items():
         if marks:
@@ -304,6 +305,8 @@ def plot_station_column(
         )
 
     height_ax.grid(True, ls="--", alpha=0.2)
+    for i, ax in enumerate(axes):
+        ax.text(0.95, 0.9, f"({chr(65+i)}-{p})", ha="right", va="center", transform=ax.transAxes)
 
 
 def build_legend(fig: plt.Figure):
@@ -314,7 +317,7 @@ def build_legend(fig: plt.Figure):
         [
             # Line2D([], [], color=HEIGHT_COLORS["Hb"], lw=1.0, label="Hb"),
             # Line2D([], [], color=HEIGHT_COLORS["Ht"], lw=1.0, label="Ht"),
-            Line2D([], [], color=HEIGHT_COLORS["Hmid"], lw=1.0, label="(Hb+Ht)/2"),
+            Line2D([], [], color=HEIGHT_COLORS["Hmid"], lw=1.0, label=r"$H_v$"),
             # Line2D([], [], color="k", lw=1.0, ls="--", label="Obscuration"),
         ]
     )
@@ -353,10 +356,10 @@ def create_dvl_summary(
         if df.empty:
             raise ValueError(f"No DVL records found for {stn_code} in mode {meta['mode']}")
         column_axes = axes[:, col]
-        plot_station_column(column_axes, df, stn_code, meta)
+        plot_station_column(col+1, column_axes, df, stn_code, meta)
         for row_ax in column_axes[:-1]:
             row_ax.tick_params(labelbottom=False)
-        column_axes[-1].set_xlabel("Time (UTC)")
+        column_axes[-1].set_xlabel("Time (UT)")
 
     build_legend(fig)
     fig.suptitle(

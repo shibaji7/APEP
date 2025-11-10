@@ -139,7 +139,7 @@ def create_skymaps_panels(
             data_folder=data_folder,
         )
         sza = solar.get_altitude(extractor.stn_info["LAT"],extractor.stn_info["LONG"], extractor.date.replace(tzinfo=timezone.utc))
-        text=f"{extractor.date.strftime('%H:%M:%S UT')}\n" + r"$\mathcal{O}$=%.2f/"%p[0] + r"$\chi=%.1f^{\circ}$"%sza
+        text=f"({chr(65+i)}) {extractor.date.strftime('%H:%M:%S UT')}\n" + r"$\mathcal{O}_{193}^p$=%.2f/"%p[0] + r"$\chi=%.1f^{\circ}$"%sza
         x_east_km, y_north_km = np.meshgrid(np.linspace(-10, 10.1, 300), np.linspace(-10, 10.1, 300))
         h = 200 * np.ones_like(x_east_km)
         lats, lons = latlon_from_xy_geopy(
@@ -165,8 +165,10 @@ def create_skymaps_panels(
             cbar=i==len(files)-1,
         )
         ax = skyplot.axes[skyplot.n_sub_plots-1]
-        ax.pcolormesh(theta, r, p, cmap="gray_r", vmax=1, vmin=0, alpha=0.4)
+        im = ax.pcolormesh(theta, r, p, cmap="gray_r", vmax=1, vmin=0, alpha=0.4)
         ax.set_rmax(6)
+        if i==3:
+            skyplot._add_colorbar(im, skyplot.fig, ax, r"$\mathcal{O}_{193}$", [0.05, 0.0125, 0.015, 0.5])
         
     ax = skyplot.fig.get_axes()[0]
     ax.text(-0.1, 0.99, fig_title, ha="left", va="top", transform=ax.transAxes, rotation=90)
