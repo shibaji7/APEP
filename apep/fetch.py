@@ -28,5 +28,6 @@ def copy2local(local:str, remote:str, ext: str="*", ):
     return
 
 if __name__ == "__main__":
-    local, remote = create_local_folder()
+    tmp = "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2024_04_08/"
+    local, remote = create_local_folder(tmp)
     copy2local(local, remote)

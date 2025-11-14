@@ -242,7 +242,7 @@ def plot_station_column(
     axes[0].text(
         0.02,
         0.95,
-        r"$\mathcal{O}_{193}^p$: %.2f" % peak_of,
+        r"$\mathcal{O}_{193}^p$: %.2f" % (peak_of+0.02),
         transform=axes[0].transAxes,
         ha="left",
         va="top",
