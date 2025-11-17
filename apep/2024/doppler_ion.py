@@ -187,7 +187,7 @@ def plot_station_column(
         vmax = set_velocity_axis(ax, comp, label, color, df)
         if comp == "Vz":
             Ofx = savgol_filter(Of, window_length=7, polyorder=3, mode="interp")
-            amplitude = -1 * vmax * (0.5 - (1 - Ofx)) * 2
+            amplitude = -1 * vmax * (0.5 - (1 - Ofx)) * 5
             eclipse_curve = np.diff(amplitude)
             ax.plot(
                 segment_times[1:],
@@ -372,7 +372,7 @@ def create_dvl_summary(
 
     outfile.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(outfile, dpi=300, bbox_inches="tight")
-    fig.savefig("manuscript_figures/Figure07.png", dpi=1000, bbox_inches="tight")
+    fig.savefig("manuscript_figures/Figure06.png", dpi=1000, bbox_inches="tight")
     plt.close(fig)
 
 

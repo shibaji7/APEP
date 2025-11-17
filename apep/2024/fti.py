@@ -246,11 +246,11 @@ def plot_multi_band_fti(
         ax.set_xlim(DATE_LIM)
         ax.set_ylim(RANGE_LIMITS)
         ax.xaxis_date()
-        ax.xaxis.set_major_locator(mdates.HourLocator(interval=3))
-        ax.xaxis.set_major_formatter(mdates.DateFormatter(r"%H^{%M}"))
+        ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter(r"%H"))
 
         iind, eind = (
-            np.argmin(np.abs([t - dt.datetime(2024, 4, 8, 15, 0) for t in times])),
+            np.argmin(np.abs([t - dt.datetime(2024, 4, 8, 17, 30) for t in times])),
             np.argmin(np.abs([t - dt.datetime(2024, 4, 8, 21, 0) for t in times]))
         )
         segment_times = times[iind:eind]
@@ -261,20 +261,21 @@ def plot_multi_band_fti(
             data_folder="data/2024/mask/",
         )
         peak_of = np.nanmax(1-Of)
-        ecl_data = eclipse_window(segment_times, Of, threshold=0.01)
+        ecl_data = eclipse_window(segment_times[::5], Of[::5], threshold=0.01)
         for k in ecl_data.keys():
             ax.axvline(ecl_data[k], color="k", linestyle="--", linewidth=1.0, alpha=0.7)
         
         tax = ax.twinx()
         tax.plot(
-            segment_times,
-            of_scaled,
+            segment_times[::5],
+            Of[::5],
             color="k",
             linestyle="-",
             linewidth=1.0,
             alpha=0.8,
             label="_nolegend_",  # keeps existing legend untouched
         )
+        tax.tick_params(axis="y", length=0, labelright=False)
 
 
     for ax in axes_flat:
@@ -299,20 +300,21 @@ def plot_multi_band_fti(
 
     if im is not None:
         ref_ax = axes_flat[min(len(bands) - 1, len(axes_flat) - 1)]
+        cpos = [0.9, 0.2, 0.025, 0.2]
+        cax = fig.add_axes(cpos)
         cbar = fig.colorbar(
             im,
             ax=ref_ax,
-            orientation="vertical",
-            fraction=0.08,
-            pad=0.08,
+            cax=cax,
         )
         cbar.set_label("O-mode Power (dB)")
 
-    fig.tight_layout(rect=[0.03, 0.05, 0.9, 0.94])
+    fig.tight_layout(rect=[0.03, 0.1, 0.9, 0.94])
     fig_file.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(fig_file, dpi=300)
+    os.system(f"cp {fig_file}  manuscript_figures/Figure07.png")
     plt.close(fig)
-    logger.info("Saved multi-band FTI figure to %s", fig_file)
+    logger.info(f"Saved multi-band FTI figure to {fig_file}")
 
 
 def main():

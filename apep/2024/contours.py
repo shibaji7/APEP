@@ -346,7 +346,7 @@ def main():
     output_dir = Path("figures/2024")
     output_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_dir / "ionosonde_contours.png", dpi=300, bbox_inches="tight")
-    fig.savefig("manuscript_figures/FigureS02.png", dpi=300, bbox_inches="tight")
+    fig.savefig("manuscript_figures/FigureS05.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 

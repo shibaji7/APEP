@@ -129,8 +129,8 @@ def main():
         output=out_dir / "sky_stack_WS833.png",
     )
     import os
-    os.system(f"cp {out_dir}/sky_stack_WS833.png  manuscript_figures/Figure04.png")
-    os.system(f"cp {out_dir}/sky_stack_KR835.png  manuscript_figures/Figure05.png")
+    os.system(f"cp {out_dir}/sky_stack_WS833.png  manuscript_figures/FigureS01.png")
+    os.system(f"cp {out_dir}/sky_stack_KR835.png  manuscript_figures/FigureS02.png")
 
 
 if __name__ == "__main__":
