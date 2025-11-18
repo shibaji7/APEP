@@ -236,11 +236,11 @@ def plot_multi_band_fti(
         ax.text(
             0.02,
             0.94,
-            f"{band[0]:.0f}–{band[1]:.0f} MHz",
+            f"({chr(65+idx)}) {band[0]:.0f}–{band[1]:.0f} MHz",
             transform=ax.transAxes,
             ha="left",
             va="top",
-            fontsize=12,
+            fontsize=15,
             fontweight="bold",
         )
         ax.set_xlim(DATE_LIM)
@@ -265,6 +265,18 @@ def plot_multi_band_fti(
         for k in ecl_data.keys():
             ax.axvline(ecl_data[k], color="k", linestyle="--", linewidth=1.0, alpha=0.7)
         
+        if idx == 0:
+            ax.text(
+                0.05,
+                1.15,
+                r"$\mathcal{O}_{193}^p$=%.2f"%peak_of,
+                transform=ax.transAxes,
+                ha="left",
+                va="top",
+                fontsize=18,
+                fontweight="bold",
+            )
+
         tax = ax.twinx()
         tax.plot(
             segment_times[::5],
@@ -292,10 +304,10 @@ def plot_multi_band_fti(
             ax.tick_params(labelbottom=False)
 
     fig.suptitle(
-        f"08 Apr Eclipse VIPIR ({station}) – Multi-band FTI ({date:%d %b %Y})",
+        f"VIPIR ({station}) – Multi-band FTI ({date:%d %b %Y})",
         fontsize=15,
         fontweight="bold",
-        y=0.90,
+        y=0.85,
     )
 
     if im is not None:
