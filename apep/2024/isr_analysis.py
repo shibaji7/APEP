@@ -158,7 +158,7 @@ def plot_isr_data(ds):
         norm=LogNorm(vmin=1e10, vmax=1e12),
     )
     ax.set_ylabel("Altitude (km)")
-    ax.set_xlabel("UT1 Time")
+    ax.set_xlabel("Time (UTC)")
     ax.set_title("Millstone Hill ISR / 08 April 2024")
     ax.set_ylim(100, 500)
     ax.set_xlim(
