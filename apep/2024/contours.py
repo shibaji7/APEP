@@ -80,6 +80,7 @@ def _extract_peak(freqs: np.ndarray, heights: np.ndarray, mask: np.ndarray) -> T
     best_local_idx = np.argmax(sub_freqs[valid])
     peak_idx = valid_idx[best_local_idx]
     return freqs[peak_idx], heights[peak_idx]
+    
 def eclipse_window(times: Iterable[dt.datetime], obscuration: np.ndarray, threshold: float = 0.05) -> Dict[str, dt.datetime]:
     """Return start/peak/end for 1-Of once it exceeds the threshold."""
     times = np.asarray(list(times), dtype=object)
