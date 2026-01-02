@@ -259,14 +259,15 @@ def main():
         raise FileNotFoundError(f"No SAO XML files found under data/{target_date.year}")
 
     panels = max(6, len(station_files))
-    ncols = 2
+    ncols = 1
     nrows = math.ceil(panels / ncols)
 
     fig = plt.figure(
-        figsize=(12, 3.2 * nrows),
+        figsize=(6, 3.2 * nrows),
     )
     gs = fig.add_gridspec(nrows, ncols*2)
-    ax_positions = [gs[0,0:2], gs[0,2:], gs[1,0:2], gs[1,2:]]
+    # ax_positions = [gs[0,0:2], gs[0,2:], gs[1,0:2], gs[1,2:]]
+    ax_positions = [gs[0,0:2], gs[1,0:2], gs[2,0:2], gs[3,0:2]]
     axes = [fig.add_subplot(pos) for pos in ax_positions]
 
 
@@ -311,18 +312,20 @@ def main():
         stn_info["LAT"],
         stn_info["LONG"],
     )
-    ax = fig.add_subplot(gs[2, 1:3])
+    # ax = fig.add_subplot(gs[2, 1:3])
+    ax = fig.add_subplot(gs[4, 0:2])
     plot_station_panel(j, ax, scaled, iri_series, stn_info, time_limits)
     ax.set_xlabel("Time (UT)")
 
-    build_legend(fig)
-    fig.suptitle("Plasma Frequency Response during 08 Apr 2024 Eclipse", fontsize=15, y=0.90, fontweight="bold")
+    # build_legend(fig)
+    # fig.suptitle("Plasma Frequency Response during 08 Apr 2024 Eclipse", fontsize=15, y=0.90, fontweight="bold")
+    fig.suptitle("(2) Plasma Frequency Response during 08 Apr 2024 Eclipse", fontsize=15, y=0.87, fontweight="bold")
     fig.tight_layout(rect=[0.03, 0.07, 0.97, 0.88])
 
     output_dir = Path("figures/2024")
     output_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_dir / "ionosonde_comparison.png", dpi=300, bbox_inches="tight")
-    fig.savefig("manuscript_figures/Figure04.png", dpi=1000, bbox_inches="tight")
+    fig.savefig("manuscript_figures/Figure04.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
