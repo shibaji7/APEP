@@ -5,6 +5,18 @@ import numpy as np
 from loguru import logger
 import datetime as dt
 
+def get_bgc_iono_data(date:dt.datetime, station:str="AL945"):
+    file = f"data/{date.strftime('%Y')}/{station.upper()}_*.SAO"
+    files = glob.glob(file)
+    if len(files) == 0:
+        logger.warning(f"No BGC iono data found for {station} on {date.strftime('%Y-%m-%d')}")
+        return None
+    files.sort()
+    logger.info(f"Found {len(files)} BGC iono data files for {station} on {date.strftime('%Y-%m-%d')}")
+    from pynasonde.digisonde.parsers.sao import SaoExtractor
+    extractor = SaoExtractor()
+    return
+
 def create_local_folder(
     base:str="/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2023_10_13/",
     clean:bool=False
