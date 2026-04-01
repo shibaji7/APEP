@@ -423,6 +423,11 @@ def create_map(
         dpi=1000,
         bbox_inches="tight",
     )
+    plt.savefig(
+        "manuscript_figures/pdfs/Figure01.pdf",
+        dpi=1000,
+        bbox_inches="tight",
+    )
     plt.close()
     
 

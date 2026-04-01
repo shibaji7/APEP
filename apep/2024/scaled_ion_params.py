@@ -13,10 +13,11 @@ from typing import Dict, Iterable, List, Tuple
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from matplotlib.dates import DateFormatter
 from matplotlib.lines import Line2D
 
-import iricore
+# import iricore
 import utils
 from pynasonde.digisonde.digi_utils import get_digisonde_info
 from pynasonde.digisonde.parsers.sao import SaoExtractor
@@ -329,5 +330,144 @@ def main():
     plt.close(fig)
 
 
+def get_eclipse_info(times, stn_info):
+    iind, eind = (
+        np.argmin(np.abs([t - dt.datetime(2024, 4, 8, 15, 0) for t in times])),
+        np.argmin(np.abs([t - dt.datetime(2024, 4, 8, 21, 0) for t in times]))
+    )
+    
+    segment_times = times[iind:eind]
+    Of = utils.get_eclipse_contours_pyEclipse(
+        segment_times, stn_info["LAT"], stn_info["LONG"], 
+        wl="193", 
+        file_ext="_150km_alleof.nc",
+        data_folder="data/2024/mask/",
+    )
+    peak_of = np.nanmax(1-Of)
+    ecl_data = eclipse_window(segment_times, Of, threshold=0.01)
+    return (ecl_data, peak_of)
+
+
+def find_deltas(stn_info, ecl, bgc, times):
+    ecl, bgc = (
+        ecl[
+            (ecl.datetime>=times[0])
+            & (ecl.datetime<=times[1])
+        ],
+        bgc[
+            (bgc.datetime>=times[0])
+            & (bgc.datetime<=times[1])
+        ]
+    )
+    dfoF2, dhmF2, dfoE, dhmE = (
+        bgc.foF2.max() - ecl.foF2.min(),
+        ecl.hmF2.max() - bgc.hmF2.min(),
+        bgc.foE.max() - ecl.foE.min(),
+        ecl.hmE.max() - bgc.hmE.min()
+    )
+    from pynasonde.vipir.ngi.utils import TimeZoneConversion
+    tzc = TimeZoneConversion(
+                lat=stn_info["LAT"], long=stn_info["LONG"]
+            )
+    lt = tzc.utc_to_local_time(
+                [times[2]]
+            )[0]
+    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    print(stn_info["URSI"], "%.2f"%dfoF2, "%.2f"%dfoE,"%.2f"%dhmF2,  "%.2f"%dhmE, lt)
+    return
+
+def matlab_main():
+    target_date = dt.date(2024, 4, 8)
+    time_limits = (
+        dt.datetime.combine(target_date, dt.time.min),
+        dt.datetime.combine(target_date + dt.timedelta(days=1), dt.time.min),
+    )
+
+    stations = ["AU930", "BC840", "AL945", "KR835"]
+    tags = ["(A) AU930 / Austin", "(B) BC840 / Boulder", "(C) AL945 / Alpena", "(D) KR835 / Kirtland", "(E) WS833 / WSMR"]
+    from fetch import get_bgc_iono_data
+    data_dicts = []
+    
+    for i, stn in enumerate(stations):
+        ds, background = get_bgc_iono_data(target_date, time_limits, stn)
+        stn_info = get_digisonde_info(stn)
+        ecl_data, peak_of = get_eclipse_info(
+            ds["datetime"].to_list(),
+            stn_info = stn_info
+        )
+        data_dicts.append(dict(
+            dataset=ds,
+            background=background,
+            xlim=time_limits,
+            title_txt=tags[i] + (r" $\mathcal{O}_{193}^p=%.2f$"%peak_of),
+            draw_legend=(i==3),
+            xlabel_txt="",
+            vlines = [ecl_data["start"], ecl_data["peak"], ecl_data["end"]],
+            vline_styles = ["--", "-", "--"]
+        ))
+        find_deltas(stn_info, ds.copy(), background.copy(), [ecl_data["start"], ecl_data["end"],ecl_data["peak"] ])
+    
+    local = [
+        f"/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_07/",
+        f"/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_08/",
+        f"/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2024_04_09/"
+    ]
+    datasets = SaoExtractor.load_SAO_files(
+        folders=[local[1]],
+        func_name="scaled",
+        n_procs=12,
+    )
+    stn_info = get_digisonde_info("WS833")
+    datasets.rename(columns={"hEs": "h`Es"}, inplace=True)
+    datasets = datasets[["datetime", "foF2", "hmF2", "foE", "hmE"]]
+    ecl_data, peak_of = get_eclipse_info(
+        ds["datetime"].to_list(),
+        stn_info = stn_info
+    )
+    bgc = SaoExtractor.load_SAO_files(
+        folders=[local[0], local[2]],
+        func_name="scaled",
+        n_procs=12,
+    )
+    bgc.rename(columns={"hEs": "h`Es"}, inplace=True)
+    bgc = bgc[["datetime", "foF2", "hmF2", "foE", "hmE"]]
+    bgc["dtime"] = bgc.datetime.dt.time
+    bgc = bgc.groupby(bgc.datetime.dt.time).agg(
+        {
+            "foF2": np.nanmean, 
+            "hmF2": np.nanmean,
+            "foE": np.nanmean,
+            "hmE": np.nanmean,
+        }
+    ).reset_index()
+    bgc.datetime = pd.to_datetime(bgc["datetime"], format="%H:%M:%S")
+    fixed_date = dt.date(target_date.year, target_date.month, target_date.day)
+    days_offset = fixed_date - dt.date(1900, 1, 1)
+    bgc.datetime += pd.to_timedelta(days_offset.days, unit="d")
+    data_dicts.append(dict(
+        dataset=datasets,
+        background=bgc,
+        xlim=time_limits,
+        title_txt=tags[-1]+ (r" $\mathcal{O}_{193}^p=%.2f$"%peak_of),
+        draw_legend=False,
+        xlabel_txt="Time, UT",
+        vlines = [ecl_data["start"], ecl_data["peak"], ecl_data["end"]],
+        vline_styles = ["--", "-", "--"]
+    ))
+    find_deltas(stn_info, datasets.copy(), bgc.copy(), [ecl_data["start"], ecl_data["end"],ecl_data["peak"] ])
+
+    import sys
+    sys.path.append("apep/")
+    from matlab_engine import CreateFig
+    fig = CreateFig(fig_path="manuscript_figures/pdfs/")
+    fig.generate_scaled_TS_figure(
+        data_dicts, 
+        "Figure04.pdf",
+        fig_title = "08 April, 2024 Total Eclipse",
+        fig_shape=(12, 1), fontsize=24,
+    )
+    return
+
+
 if __name__ == "__main__":
-    main()
+    matlab_main()

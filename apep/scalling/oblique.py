@@ -144,13 +144,17 @@ class ScalingProcess:
                     })
         return
 
-    def to_pandas(self):
+    def to_pandas(self, need_fo=False):
         data = [dict(
             time=self.time,
         )]
         for j, param in enumerate(self.scaled_params):
             data[0][f"fv_{j}"] = param["fv"]
             data[0][f"hv_{j}"] = param["hv"]
+            if need_fo:
+                data[0][f"fo_{j}"] = param["fo"]
+                data[0][f"rv_{j}"] = param["rv"]
+                data[0][f"phi_{j}"] = param["phi"]
         df = pd.DataFrame(data)
         return df
 
@@ -208,6 +212,12 @@ class ScalingProcess:
             prange=[np.unique(cluster_img).min(), np.unique(cluster_img).max()],
             cbar_label="Power (dB)"
         )
+        ax = ionogram.axes[2]
+        df = self.to_pandas(need_fo=True)
+        if "fv_1" in df.columns:
+            fo = df.fo_1.values[0]
+            print(f"fo: {fo} / {np.log10(fo)}", ax.get_xlim())
+            ax.axvline(np.log10(fo), color="white", linestyle="--", linewidth=2, zorder=4)
         for ax in ionogram.axes:
             ax.set_xlim(np.log10([2, 15]))
         fname = fig_dir + f"{time_str}_ol.png"
@@ -231,6 +241,7 @@ for file in files:
     sp.draw_ionograms()
     datasets = pd.concat([datasets, sp.to_pandas()], ignore_index=True)
     sp.close()
+    # break
     
 datasets.to_csv(f"data/Conway/oblique_scaling_{date_str}.csv", index=False, header=True)
 # base_dir = "/media/chakras4/Crucial X9/APEP/AFRL_Digisondes/receiver_files/for_Aroh/"

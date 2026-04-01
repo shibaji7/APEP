@@ -95,30 +95,30 @@ def load_dvl_dataframe(date: dt.datetime, station: str, mode: str) -> pd.DataFra
     return df
 
 
-def eclipse_window(
-    times: Iterable[dt.datetime],
-    obscuration: np.ndarray,
-    threshold: float = 0.05,
-) -> Dict[str, dt.datetime]:
-    if not times:
-        return {}
-    times_array = np.asarray(list(times), dtype=object)
-    obsc_array = np.asarray(obscuration, dtype=float)
-    valid = np.isfinite(obsc_array)
+def eclipse_window(times: Iterable[dt.datetime], obscuration: np.ndarray, threshold: float = 0.05) -> Dict[str, dt.datetime]:
+    """Return start/peak/end for 1-Of once it exceeds the threshold."""
+    times = np.asarray(list(times), dtype=object)
+    flipped = 1.0 - np.asarray(obscuration, dtype=float)
+
+    valid = np.isfinite(flipped)
     if not np.any(valid):
         return {}
-    obsc = obsc_array[valid]
-    valid_times = times_array[valid]
-    above = obsc >= threshold
+
+    flipped = flipped[valid]
+    times = times[valid]
+
+    above = flipped >= threshold
     if not np.any(above):
         return {}
+
     start_idx = np.argmax(above)
     end_idx = len(above) - np.argmax(above[::-1]) - 1
-    peak_idx = np.nanargmax(obsc)
+    peak_idx = np.nanargmax(flipped)
+
     return {
-        "start": valid_times[start_idx],
-        "peak": valid_times[peak_idx],
-        "end": valid_times[end_idx],
+        "start": times[start_idx],
+        "peak": times[peak_idx],
+        "end": times[end_idx],
     }
 
 
@@ -376,5 +376,62 @@ def create_dvl_summary(
     plt.close(fig)
 
 
+def get_eclipse_info(times, stn_info):
+    iind, eind = (
+        np.argmin(np.abs([t - dt.datetime(2024, 4, 8, 15, 0) for t in times])),
+        np.argmin(np.abs([t - dt.datetime(2024, 4, 8, 21, 0) for t in times]))
+    )
+    
+    segment_times = times[iind+1:eind-1]
+    Of = utils.get_eclipse_contours_pyEclipse(
+        segment_times, stn_info["LAT"], stn_info["LONG"], 
+        wl="193", 
+        file_ext="_150km_alleof.nc",
+        data_folder="data/2024/mask/",
+    )
+    peak_of = np.nanmax(1-Of)
+    ecl_data = eclipse_window(segment_times, Of, threshold=0.01)
+    return (ecl_data, peak_of)
+
+def create_dvl_summary_matlab():
+    date = dt.date(2024, 4, 8)
+    time_limits = (
+        dt.datetime.combine(date, dt.time.min),
+        dt.datetime.combine(date + dt.timedelta(days=1), dt.time.min),
+    )
+    stations = DEFAULT_STATIONS
+    ncols = len(stations)
+    data_dicts = []
+    tags = ["(A) KR835 / Kirtland", "(B) WS833 / WSMR"]
+
+    for col, (stn_code, meta) in enumerate(stations):
+        df = load_dvl_dataframe(date, stn_code, meta["mode"])
+        ecl_data, peak_of = get_eclipse_info(
+            df["datetime"].to_list(),
+            stn_info = get_digisonde_info(stn_code)
+        )
+        data_dicts.append(dict(
+            dataset=df,
+            xlim=time_limits,
+            title_txt=tags[col] + (r" $\mathcal{O}_{193}^p=%.2f$"%peak_of),
+            draw_legend=False,
+            xlabel_txt="",
+            vlines = [ecl_data["start"], ecl_data["peak"], ecl_data["end"]],
+            vline_styles = ["--", "-", "--"]
+        ))
+
+    import sys
+    sys.path.append("apep/")
+    from matlab_engine import CreateFig
+    fig = CreateFig(fig_path="manuscript_figures/pdfs/")
+    fig.generate_doppler_figure(
+        data_dicts, 
+        "Figure06.pdf",
+        fig_title = "08 April, 2024 Total Eclipse",
+        fig_shape=(12, 3), fontsize=30,
+    )
+    return
+
 if __name__ == "__main__":
-    create_dvl_summary()
+    # create_dvl_summary()
+    create_dvl_summary_matlab()

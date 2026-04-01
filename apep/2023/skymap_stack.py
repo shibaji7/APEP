@@ -133,5 +133,45 @@ def main():
     os.system(f"cp {out_dir}/sky_stack_KR835.png  manuscript_figures/FigureS02.png")
 
 
+def main_matlab():
+    out_dir = Path("figures/2023")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    kr835_folder = Path(
+        "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/SKYWAVE_DPS4D_2023_10_14"
+    )
+    ws833_folder = Path(
+        "/tmp/chakras4/Crucial X9/APEP/AFRL_Digisondes/Digisonde Files/WSMR_DPS4D_2023_10_14"
+    )
+
+    kr835_files = select_sky_files(kr835_folder, 16, dt.datetime(2023, 10, 14, 15, 10), dt.datetime(2023, 10, 14, 18, 30))
+    ws833_files = select_sky_files(ws833_folder, 16, dt.datetime(2023, 10, 14, 15, 10), dt.datetime(2023, 10, 14, 18, 30))
+
+    dataset835 = []
+    from pynasonde.digisonde.parsers.sky import SkyExtractor
+    for j, f in enumerate(kr835_files):
+        extractor = SkyExtractor(str(f), True, True,)
+        time = str(f).split("/")[-1].split(".")[0].split("_")[-1][7:11]
+        extractor.extract()
+        dataset835.append(dict(
+            dataset=extractor.to_pandas(),
+            tag_direction=j==15,
+            cbar=j==3,
+            text_txt=f"({chr(65+j)}) {time} UT"
+        ))
+
+    import sys
+    sys.path.append("apep/")
+    from matlab_engine import CreateFig
+    fig = CreateFig(fig_path="manuscript_figures/pdfs/")
+    fig.generate_skymap_figure(
+        dataset835, 
+        "FigureS01.png",
+        fig_title = "14 October, 2023 Annular Eclipse",
+        fig_shape=(2, 2), fontsize=40,
+    )
+    return
+
 if __name__ == "__main__":
-    main()
+    # main()
+    main_matlab()
