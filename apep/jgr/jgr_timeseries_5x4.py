@@ -54,7 +54,7 @@ COLUMNS = [
 ]
 
 EVENTS = {
-    2023: dict(date=dt.date(2023, 10, 14), window=(13, 21), mask_window=(14, 21), fig="Figure02",
+    2023: dict(date=dt.date(2023, 10, 14), window=(13, 21), mask_window=(14, 21), hour_ticks=(13, 15, 17, 19, 21), fig="Figure02",
                mask="data/2023/mask", wl="of", ext="_150km_193_1.nc"),
     2024: dict(date=dt.date(2024, 4, 8), window=(16, 21), fig="Figure04",
                mask="data/2024/mask", wl="193", ext="_150km_alleof.nc"),
@@ -311,7 +311,10 @@ def draw_figure(year, data, out_dir=OUT_DIR, titles=None, baseline_label="Quiet-
                 plot_line(ax, base, color=BASE_COLOR, lw=1.1, ls="--", zorder=2)
                 plot_line(ax, ev, color=EVENT_COLOR, lw=1.0, marker="o", ms=1.4,
                           mew=0, zorder=3)
-            ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+            ax.xaxis.set_major_locator(
+                mdates.HourLocator(byhour=cfg["hour_ticks"]) if "hour_ticks" in cfg
+                else mdates.HourLocator(interval=1))
+            ax.xaxis.set_minor_locator(mdates.HourLocator())
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%H"))
             if i == 0:
                 ax.set_title(titles.get(key, f"{label} ({unit})"), pad=4)
