@@ -158,7 +158,10 @@ def load_station(stn, year, smooth=True):
         e = fill_gaps(e.sort_values("t"))
         if smooth:
             e = despike(e, SMOOTH_HEIGHT, SMOOTH_HEIGHT_MEAN) if key in ("hF2", "hE") else despike(e)
-        out[key] = (e, fill_gaps(b.sort_values("t")))
+        b = fill_gaps(b.sort_values("t"))
+        if smooth and key in ("hF2", "hE") and len(b):
+            b = despike(b, "45min", "45min")
+        out[key] = (e, b)
     return out
 
 
