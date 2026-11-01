@@ -173,9 +173,7 @@ def load_station(stn, year, smooth=True):
         e = pd.DataFrame({"t": ed["time"], "v": _first_col(ed, ecols)}).dropna()
         b = pd.DataFrame({"t": base_t, "v": _first_col(md, mcols)}).dropna()
         e = fill_gaps(e.sort_values("t"))
-        # The despiked final files already contain the E-region cleaning;
-        # avoid applying a second rolling filter to foE and h'E.
-        if smooth and key not in ("foE", "hE"):
+        if smooth:
             e = despike(e, SMOOTH_HEIGHT, SMOOTH_HEIGHT_MEAN) if key in ("hF2", "hE") else despike(e)
         b = fill_gaps(b.sort_values("t"))
         if smooth and key in ("hF2", "hE") and len(b):
