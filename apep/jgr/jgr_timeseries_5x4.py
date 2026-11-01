@@ -36,6 +36,7 @@ def find_up(rel):
 
 
 DATA_DIR = find_up("Datasets/Data")
+FINAL_DIR = find_up("Datasets/processing/final")
 OUT_DIR = REPO / "manuscript_figures" / "jgr"
 
 STATIONS = ["AU930", "BC840", "AL945", "KR835", "WS833"]
@@ -146,9 +147,25 @@ def despike(df, window=SMOOTH, mean_window=SMOOTH_MEAN):
 def load_station(stn, year, smooth=True):
     ev = DATA_DIR / f"{stn}_{year}_scaled.csv"
     md = DATA_DIR / f"{stn}_{year}_median.csv"
-    if not (ev.exists() and md.exists()):
+    event_file = ev
+    if year == 2023 and stn in {"KR835", "WS833"}:
+        despiked = FINAL_DIR / f"rsf_scaled_{EVENTS[year]['date']:%Y%m%d}_{stn}_despiked.csv"
+        if despiked.is_file() and despiked.stat().st_size > 0:
+            event_file = despiked
+    if not (event_file.exists() and md.exists()):
         return None
-    ed = pd.read_csv(ev, parse_dates=["time"])
+
+    # For the 2023 eclipse, use the station-specific despiked event file when
+    # available.  These files contain the reliability-filtered E-region values
+    # used for foE and h'E, while the monthly median remains the reference.
+    ed = pd.read_csv(event_file, parse_dates=["time"])
+    if event_file != ev:
+        ed = ed.rename(columns={
+            "foF2": "foF2_mhz",
+            "h_prime_F2": "h_prime_F2_km",
+            "foE": "foE_mhz",
+            "h_prime_E": "h_prime_E_km",
+        })
     md = pd.read_csv(md)
     base_t = pd.Timestamp(EVENTS[year]["date"]) + pd.to_timedelta(md["time_of_day"], unit="h")
     out = {}
@@ -156,7 +173,9 @@ def load_station(stn, year, smooth=True):
         e = pd.DataFrame({"t": ed["time"], "v": _first_col(ed, ecols)}).dropna()
         b = pd.DataFrame({"t": base_t, "v": _first_col(md, mcols)}).dropna()
         e = fill_gaps(e.sort_values("t"))
-        if smooth:
+        # The despiked final files already contain the E-region cleaning;
+        # avoid applying a second rolling filter to foE and h'E.
+        if smooth and key not in ("foE", "hE"):
             e = despike(e, SMOOTH_HEIGHT, SMOOTH_HEIGHT_MEAN) if key in ("hF2", "hE") else despike(e)
         b = fill_gaps(b.sort_values("t"))
         if smooth and key in ("hF2", "hE") and len(b):
